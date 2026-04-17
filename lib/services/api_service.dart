@@ -4,9 +4,9 @@ import '../models/partner.dart';
 import '../models/invoice.dart';
 
 class ApiService {
-  // Use 10.0.2.2 if you are on Android Emulator to refer to your PC's localhost
-  // Use your PC's LAN IP (e.g., 192.168.1.5) if testing on a real device
-  static const String baseUrl = 'http://10.0.2.2/xpower_api';
+  // Use 'localhost' or '127.0.0.1' if you are running the app on the Web or Windows.
+  // Note: This will NOT work on an Android Emulator or Physical Device.
+  static const String baseUrl = 'http://127.0.0.1/xpower_api';
 
   Future<Partner?> getPartner(int mobileNo) async {
     try {
@@ -64,5 +64,30 @@ class ApiService {
       print('API Error: $e');
     }
     return [];
+  }
+
+  Future<bool> registerPartner(Partner partner) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/register_partner.php'),
+        body: {
+          'first_name': partner.firstName,
+          'last_name': partner.lastName,
+          'mobile_no': partner.mobileNo.toString(),
+          'email': partner.email,
+          'bank_account_no': partner.bankAccountNo.toString(),
+          'bank_name': partner.bankName,
+          'bank_account_type': partner.bankAccountType,
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        return data['success'] == true;
+      }
+    } catch (e) {
+      print('API Error: $e');
+    }
+    return false;
   }
 }

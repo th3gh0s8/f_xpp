@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'otp_verification_page.dart';
+import 'registration_page.dart';
 import 'services/api_service.dart';
 
 class LoginPage extends StatefulWidget {
@@ -42,16 +43,22 @@ class _LoginPageState extends State<LoginPage> {
           );
         }
       } else {
+        // Partner not found, redirect to Registration
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('PARTNER NOT FOUND IN DATABASE')),
+            const SnackBar(content: Text('MOBILE NOT REGISTERED. PLEASE SIGN UP.')),
+          );
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (context) => RegistrationPage(mobileNo: phoneStr),
+            ),
           );
         }
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('CONNECTION ERROR: MAKE SURE XAMPP IS RUNNING')),
+          const SnackBar(content: Text('CONNECTION ERROR: MAKE SURE XAMPP IS RUNNING')),
         );
       }
     } finally {

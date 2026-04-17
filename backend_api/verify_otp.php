@@ -19,12 +19,29 @@ if ($result->num_rows > 0) {
     $row = $result->fetch_assoc();
     $id = $row['ID'];
 
+    // Mark OTP as used
     $update_stmt = $conn->prepare("UPDATE web_codes SET status = 1 WHERE ID = ?");
     $update_stmt->bind_param("i", $id);
     $update_stmt->execute();
 
-    echo json_encode(["success" => true, "message" => "OTP verified"]);
+    // Insert into login_activity
+    $act_type = 1; // 1 for Login
+    $status = 1; // 1 for Success
+    $now = date('Y-m-d H:i:s');
+    $log_stmt = $conn->prepare("INSERT INTO login_activity (u_id, act_type, time, status) VALUES (?, ?, ?, ?)");
+    $log_stmt->bind_param("iisi", $mobile_no, $act_type, $now, $status);
+    $log_stmt->execute();
+
+    echo json_encode(["success" => true, "message" => "OTP verified and activity logged"]);
 } else {
+    // Optional: Log failed attempt
+    $act_type = 1;
+    $status = 0; // 0 for Failure
+    $now = date('Y-m-d H:i:s');
+    $log_stmt = $conn->prepare("INSERT INTO login_activity (u_id, act_type, time, status) VALUES (?, ?, ?, ?)");
+    $log_stmt->bind_param("iisi", $mobile_no, $act_type, $now, $status);
+    $log_stmt->execute();
+
     echo json_encode(["success" => false, "message" => "Invalid or expired OTP"]);
 }
 
