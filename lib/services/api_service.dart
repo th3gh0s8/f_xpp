@@ -90,4 +90,34 @@ class ApiService {
     }
     return false;
   }
+
+  Future<Map<String, dynamic>?> getDashboardData(int mobileNo) async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/get_dashboard_data.php?mobile_no=$mobileNo'),
+      );
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data['success'] == true) return data['data'];
+      }
+    } catch (e) {
+      print('API Error: $e');
+    }
+    return null;
+  }
+
+  Future<List<Map<String, dynamic>>> getPayouts(int mobileNo) async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/get_payouts.php?mobile_no=$mobileNo'),
+      );
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data['success'] == true) return List<Map<String, dynamic>>.from(data['data']);
+      }
+    } catch (e) {
+      print('API Error: $e');
+    }
+    return [];
+  }
 }

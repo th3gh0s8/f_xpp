@@ -66,10 +66,6 @@ class _OTPVerificationPageState extends State<OTPVerificationPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          'VERIFY',
-          style: TextStyle(letterSpacing: 2, fontWeight: FontWeight.w900),
-        ),
         centerTitle: true,
       ),
       body: Padding(
@@ -145,13 +141,10 @@ class _OTPVerificationPageState extends State<OTPVerificationPage> {
             const SizedBox(height: 24),
             Center(
               child: TextButton(
-                onPressed: () {
-                  debugPrint('Resending OTP...');
-                  // You can call your API here to resend the code
-                },
-                child: const Text(
-                  "RESEND CODE",
-                  style: TextStyle(
+                onPressed: _isLoading ? null : _resendOTP,
+                child: Text(
+                  _isLoading ? "SENDING..." : "RESEND CODE",
+                  style: const TextStyle(
                     color: Colors.black,
                     fontWeight: FontWeight.bold,
                     decoration: TextDecoration.underline,
@@ -163,6 +156,30 @@ class _OTPVerificationPageState extends State<OTPVerificationPage> {
         ),
       ),
     );
+  }
+
+  Future<void> _resendOTP() async {
+    setState(() => _isLoading = true);
+    try {
+      final mobileNo = int.tryParse(widget.phoneNumber.replaceAll(RegExp(r'\D'), ''));
+      if (mobileNo != null) {
+        // Calling getPartner again triggers a new OTP generation in your PHP
+        final partner = await _apiService.getPartner(mobileNo);
+        if (partner != null && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('NEW OTP SENT SUCCESSFULLY')),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('FAILED TO RESEND OTP')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   @override

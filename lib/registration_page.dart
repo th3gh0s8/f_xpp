@@ -74,7 +74,6 @@ class _RegistrationPageState extends State<RegistrationPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('REGISTER', style: TextStyle(letterSpacing: 2, fontWeight: FontWeight.w900)),
         centerTitle: true,
       ),
       body: SingleChildScrollView(
