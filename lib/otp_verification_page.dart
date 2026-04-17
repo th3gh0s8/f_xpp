@@ -146,7 +146,8 @@ class _OTPVerificationPageState extends State<OTPVerificationPage> {
             Center(
               child: TextButton(
                 onPressed: () {
-                  _generateDummyOTP();
+                  debugPrint('Resending OTP...');
+                  // You can call your API here to resend the code
                 },
                 child: const Text(
                   "RESEND CODE",
