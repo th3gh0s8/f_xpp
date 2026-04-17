@@ -14,6 +14,7 @@ class _PayoutsViewState extends State<PayoutsView> {
   List<Map<String, dynamic>> _payouts = [];
   Map<String, dynamic>? _dashboardData;
   bool _isLoading = true;
+  bool _isRequesting = false;
 
   @override
   void initState() {
@@ -32,6 +33,49 @@ class _PayoutsViewState extends State<PayoutsView> {
         _isLoading = false;
       });
     }
+  }
+
+  Future<void> _handlePayoutRequest() async {
+    final balance = double.tryParse(_dashboardData?['total_earned']?.toString() ?? '0') ?? 0;
+    if (balance <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('INSUFFICIENT BALANCE')));
+      return;
+    }
+
+    setState(() => _isRequesting = true);
+    final mobileNo = int.tryParse(widget.phoneNumber.replaceAll(RegExp(r'\D'), ''));
+    
+    if (mobileNo != null) {
+      final result = await _apiService.requestPayout(mobileNo, balance);
+      
+      if (mounted) {
+        if (result['success']) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('PAYOUT REQUESTED SUCCESSFULLY')));
+          _fetchPayoutData();
+        } else if (result['code'] == 'MISSING_BANK') {
+          _showBankMissingDialog();
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(result['message'])));
+        }
+      }
+    }
+    setState(() => _isRequesting = false);
+  }
+
+  void _showBankMissingDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('BANK DETAILS MISSING'),
+        content: const Text('Please update your bank details in the Profile tab before requesting a payout.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('OK', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -66,10 +110,10 @@ class _PayoutsViewState extends State<PayoutsView> {
                 const SizedBox(height: 24),
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(backgroundColor: Colors.white, foregroundColor: Colors.black),
-                  onPressed: () {
-                    // Implement payout request
-                  },
-                  child: const Text('REQUEST PAYOUT'),
+                  onPressed: _isRequesting ? null : _handlePayoutRequest,
+                  child: _isRequesting 
+                    ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))
+                    : const Text('REQUEST PAYOUT'),
                 ),
               ],
             ),
@@ -87,7 +131,7 @@ class _PayoutsViewState extends State<PayoutsView> {
                     return ListTile(
                       contentPadding: EdgeInsets.zero,
                       title: Text('PAYOUT #${payout['recipt_no']}', style: const TextStyle(fontWeight: FontWeight.bold)),
-                      subtitle: Text('${payout['request_date']}'),
+                      subtitle: Text('${payout['request_date']} - ${payout['status']}'),
                       trailing: Text(
                         'LKR ${payout['amount']}',
                         style: const TextStyle(fontWeight: FontWeight.w900),

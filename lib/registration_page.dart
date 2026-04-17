@@ -19,9 +19,6 @@ class _RegistrationPageState extends State<RegistrationPage> {
   final TextEditingController _firstNameController = TextEditingController();
   final TextEditingController _lastNameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
-  final TextEditingController _bankAccountNoController = TextEditingController();
-  final TextEditingController _bankNameController = TextEditingController();
-  String _bankAccountType = 'Savings';
 
   Future<void> _handleRegister() async {
     if (!_formKey.currentState!.validate()) return;
@@ -34,9 +31,9 @@ class _RegistrationPageState extends State<RegistrationPage> {
         lastName: _lastNameController.text.trim(),
         mobileNo: int.parse(widget.mobileNo.replaceAll(RegExp(r'\D'), '')),
         email: _emailController.text.trim(),
-        bankAccountNo: int.parse(_bankAccountNoController.text.trim()),
-        bankName: _bankNameController.text.trim(),
-        bankAccountType: _bankAccountType,
+        bankAccountNo: 0, // Default to 0, to be updated in profile
+        bankName: '',     // Empty, to be updated in profile
+        bankAccountType: '', // Empty, to be updated in profile
       );
 
       final success = await _apiService.registerPartner(partner);
@@ -107,28 +104,6 @@ class _RegistrationPageState extends State<RegistrationPage> {
                 decoration: const InputDecoration(labelText: 'EMAIL'),
                 keyboardType: TextInputType.emailAddress,
                 validator: (v) => v!.isEmpty ? 'Required' : null,
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _bankAccountNoController,
-                decoration: const InputDecoration(labelText: 'BANK ACCOUNT NUMBER'),
-                keyboardType: TextInputType.number,
-                validator: (v) => v!.isEmpty ? 'Required' : null,
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _bankNameController,
-                decoration: const InputDecoration(labelText: 'BANK NAME'),
-                validator: (v) => v!.isEmpty ? 'Required' : null,
-              ),
-              const SizedBox(height: 16),
-              DropdownButtonFormField<String>(
-                value: _bankAccountType,
-                decoration: const InputDecoration(labelText: 'ACCOUNT TYPE'),
-                items: ['Savings', 'Current']
-                    .map((t) => DropdownMenuItem(value: t, child: Text(t.toUpperCase())))
-                    .toList(),
-                onChanged: (v) => setState(() => _bankAccountType = v!),
               ),
               const SizedBox(height: 32),
               ElevatedButton(

@@ -120,4 +120,64 @@ class ApiService {
     }
     return [];
   }
+
+  Future<bool> updateBankDetails(int mobileNo, String bankName, String accNo, String type) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/update_bank_details.php'),
+        body: {
+          'mobile_no': mobileNo.toString(),
+          'bank_account_no': accNo,
+          'bank_name': bankName,
+          'bank_account_type': type,
+        },
+      );
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        return data['success'] == true;
+      }
+    } catch (e) {
+      print('API Error: $e');
+    }
+    return false;
+  }
+
+  Future<bool> updateProfile(Partner partner) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/update_profile.php'),
+        body: {
+          'mobile_no': partner.mobileNo.toString(),
+          'first_name': partner.firstName,
+          'last_name': partner.lastName,
+          'email': partner.email,
+          'bank_account_no': partner.bankAccountNo.toString(),
+          'bank_name': partner.bankName,
+          'bank_account_type': partner.bankAccountType,
+        },
+      );
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        return data['success'] == true;
+      }
+    } catch (e) {
+      print('API Error: $e');
+    }
+    return false;
+  }
+
+  Future<Map<String, dynamic>> requestPayout(int mobileNo, double amount) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/request_payout.php'),
+        body: {
+          'mobile_no': mobileNo.toString(),
+          'amount': amount.toString(),
+        },
+      );
+      return json.decode(response.body);
+    } catch (e) {
+      return {'success': false, 'message': 'Network Error'};
+    }
+  }
 }
