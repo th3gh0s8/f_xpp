@@ -47,18 +47,26 @@ class _ProfileViewState extends State<ProfileView> {
       child: Column(
         children: [
           _buildHeader(),
-          const SizedBox(height: 32),
-          _buildSectionTitle('PERSONAL INFORMATION'),
-          _buildInfoTile(Icons.person_outline, 'FULL NAME', '${_partner?.firstName} ${_partner?.lastName}'),
-          _buildInfoTile(Icons.email_outlined, 'EMAIL ADDRESS', _partner?.email ?? '-'),
-          _buildInfoTile(Icons.phone_android, 'MOBILE NUMBER', widget.phoneNumber),
-          const SizedBox(height: 32),
-          _buildSectionTitle('BANKING DETAILS'),
-          _buildInfoTile(Icons.account_balance_outlined, 'BANK NAME', _partner?.bankName == '' ? 'NOT SET' : _partner?.bankName ?? 'NOT SET'),
-          _buildInfoTile(Icons.numbers, 'ACCOUNT NUMBER', _partner?.bankAccountNo == 0 ? 'NOT SET' : _partner?.bankAccountNo.toString() ?? 'NOT SET'),
-          _buildInfoTile(Icons. credit_card, 'ACCOUNT TYPE', _partner?.bankAccountType == '' ? 'NOT SET' : _partner?.bankAccountType ?? 'NOT SET'),
-          const SizedBox(height: 48),
-          _buildActionButton('EDIT PROFILE', Icons.edit, () async {
+          const SizedBox(height: 40),
+          _buildInfoSection(
+            'PERSONAL DATA',
+            [
+              _buildModernTile(Icons.person, 'FULL NAME', '${_partner?.firstName} ${_partner?.lastName}'.toUpperCase()),
+              _buildModernTile(Icons.alternate_email, 'EMAIL ADDRESS', _partner?.email?.toUpperCase() ?? '-'),
+              _buildModernTile(Icons.phone_android, 'MOBILE NO', widget.phoneNumber),
+            ],
+          ),
+          const SizedBox(height: 24),
+          _buildInfoSection(
+            'BANKING DETAILS',
+            [
+              _buildModernTile(Icons.account_balance, 'BANK NAME', _partner?.bankName?.toUpperCase() ?? 'NOT CONFIGURED'),
+              _buildModernTile(Icons.tag, 'ACCOUNT NO', _partner?.bankAccountNo == 0 ? 'NOT CONFIGURED' : _partner?.bankAccountNo.toString() ?? 'NOT CONFIGURED'),
+              _buildModernTile(Icons.payments, 'BRANCH / TYPE', _partner?.bankAccountType?.toUpperCase() ?? 'NOT CONFIGURED'),
+            ],
+          ),
+          const SizedBox(height: 40),
+          _buildActionButton('EDIT PROFILE', Icons.edit_note, () async {
             final updated = await Navigator.push(
               context,
               MaterialPageRoute(builder: (context) => EditProfilePage(partner: _partner!)),
@@ -66,9 +74,10 @@ class _ProfileViewState extends State<ProfileView> {
             if (updated == true) _fetchPartnerData();
           }),
           const SizedBox(height: 12),
-          _buildActionButton('LOGOUT', Icons.logout, () {
+          _buildActionButton('LOGOUT SESSION', Icons.power_settings_new, () {
              Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
           }, isDestructive: true),
+          const SizedBox(height: 40),
         ],
       ),
     );
@@ -81,53 +90,101 @@ class _ProfileViewState extends State<ProfileView> {
           padding: const EdgeInsets.all(4),
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            border: Border.all(color: Colors.black, width: 2),
+            border: Border.all(color: Colors.black.withOpacity(0.05), width: 1),
           ),
-          child: const CircleAvatar(
-            radius: 50,
-            backgroundColor: Colors.white,
-            child: Icon(Icons.person, size: 60, color: Colors.black),
+          child: Container(
+            padding: const EdgeInsets.all(20),
+            decoration: const BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: LinearGradient(
+                colors: [Color(0xFF424242), Color(0xFF212121)],
+              ),
+            ),
+            child: const Icon(Icons.person, size: 40, color: Colors.white),
           ),
         ),
         const SizedBox(height: 16),
         Text(
           '${_partner?.firstName} ${_partner?.lastName}'.toUpperCase(),
-          style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900, letterSpacing: 1),
+          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900, letterSpacing: -0.5),
         ),
-        const Text(
-          'XPOWER PARTNER',
-          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey, letterSpacing: 2),
+        const SizedBox(height: 8),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          decoration: BoxDecoration(
+            color: Colors.black.withOpacity(0.05),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: const Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.verified, size: 14, color: Colors.blue),
+              SizedBox(width: 6),
+              Text(
+                'AUTHORIZED PARTNER',
+                style: TextStyle(fontSize: 9, fontWeight: FontWeight.w900, letterSpacing: 1),
+              ),
+            ],
+          ),
         ),
       ],
     );
   }
 
-  Widget _buildSectionTitle(String title) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: Row(
-        children: [
-          Text(title, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 13, letterSpacing: 1.5)),
-          const SizedBox(width: 10),
-          const Expanded(child: Divider(color: Colors.black, thickness: 1)),
-        ],
-      ),
+  Widget _buildInfoSection(String title, List<Widget> children) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 4, bottom: 16),
+          child: Text(
+            title, 
+            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w900, letterSpacing: 1.5, color: Colors.black38)
+          ),
+        ),
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: Colors.black.withOpacity(0.05)),
+          ),
+          child: Column(children: children),
+        ),
+      ],
     );
   }
 
-  Widget _buildInfoTile(IconData icon, String label, String value) {
+  Widget _buildModernTile(IconData icon, String label, String value) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 20),
+      padding: const EdgeInsets.all(20),
       child: Row(
         children: [
-          Icon(icon, size: 20, color: Colors.black54),
-          const SizedBox(width: 16),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(label, style: const TextStyle(fontSize: 10, color: Colors.grey, fontWeight: FontWeight.bold)),
-              Text(value, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
-            ],
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF757575), Color(0xFF424242)],
+              ),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, size: 18, color: Colors.white),
+          ),
+          const SizedBox(width: 20),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label, 
+                  style: TextStyle(fontSize: 9, color: Colors.black.withOpacity(0.3), fontWeight: FontWeight.w900, letterSpacing: 1)
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  value, 
+                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w900, letterSpacing: -0.2)
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -137,15 +194,22 @@ class _ProfileViewState extends State<ProfileView> {
   Widget _buildActionButton(String label, IconData icon, VoidCallback onTap, {bool isDestructive = false}) {
     return SizedBox(
       width: double.infinity,
-      height: 50,
-      child: OutlinedButton.icon(
+      height: 56,
+      child: TextButton.icon(
         onPressed: onTap,
-        icon: Icon(icon, size: 18),
-        label: Text(label, style: const TextStyle(fontWeight: FontWeight.w900, letterSpacing: 1.5)),
-        style: OutlinedButton.styleFrom(
-          foregroundColor: isDestructive ? Colors.red : Colors.black,
-          side: BorderSide(color: isDestructive ? Colors.red : Colors.black, width: 2),
-          shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+        icon: Icon(icon, size: 20, color: isDestructive ? Colors.red : Colors.black),
+        label: Text(
+          label, 
+          style: TextStyle(
+            fontWeight: FontWeight.w900, 
+            letterSpacing: 1, 
+            fontSize: 13,
+            color: isDestructive ? Colors.red : Colors.black
+          )
+        ),
+        style: TextButton.styleFrom(
+          backgroundColor: isDestructive ? Colors.red.withOpacity(0.05) : Colors.black.withOpacity(0.05),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         ),
       ),
     );

@@ -24,26 +24,16 @@ class _DashboardPageState extends State<DashboardPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        centerTitle: true,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout, color: Colors.black),
-            onPressed: () {
-              Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
-            },
-          ),
-        ],
-      ),
-      body: IndexedStack(
-        index: _selectedIndex,
-        children: [
-          DashboardView(phoneNumber: widget.phoneNumber),
-          InvoicesView(phoneNumber: widget.phoneNumber),
-          PayoutsView(phoneNumber: widget.phoneNumber),
-          ProfileView(phoneNumber: widget.phoneNumber),
-        ],
+      body: SafeArea(
+        child: IndexedStack(
+          index: _selectedIndex,
+          children: [
+            DashboardView(phoneNumber: widget.phoneNumber),
+            InvoicesView(phoneNumber: widget.phoneNumber),
+            PayoutsView(phoneNumber: widget.phoneNumber),
+            ProfileView(phoneNumber: widget.phoneNumber),
+          ],
+        ),
       ),
       bottomNavigationBar: _buildBottomNav(),
     );
@@ -51,24 +41,44 @@ class _DashboardPageState extends State<DashboardPage> {
 
   Widget _buildBottomNav() {
     return Container(
-      decoration: const BoxDecoration(
-        border: Border(top: BorderSide(color: Colors.black, width: 2)),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border(top: BorderSide(color: Colors.black.withOpacity(0.05), width: 1)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 10,
+            offset: const Offset(0, -5),
+          ),
+        ],
       ),
       child: BottomNavigationBar(
         currentIndex: _selectedIndex,
         onTap: _onItemTapped,
         elevation: 0,
-        backgroundColor: Colors.white,
+        backgroundColor: Colors.transparent,
         selectedItemColor: Colors.black,
-        unselectedItemColor: Colors.grey,
-        selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 10),
-        unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 10),
+        unselectedItemColor: Colors.black.withOpacity(0.3),
+        selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w900, fontSize: 10, letterSpacing: 0.5),
+        unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w800, fontSize: 10, letterSpacing: 0.5),
         type: BottomNavigationBarType.fixed,
         items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.dashboard), label: 'DASHBOARD'),
-          BottomNavigationBarItem(icon: Icon(Icons.receipt_long), label: 'INVOICES'),
-          BottomNavigationBarItem(icon: Icon(Icons.payments), label: 'PAYOUTS'),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'PROFILE'),
+          BottomNavigationBarItem(
+            icon: Padding(padding: EdgeInsets.only(bottom: 4), child: Icon(Icons.grid_view_rounded, size: 20)), 
+            label: 'HOME'
+          ),
+          BottomNavigationBarItem(
+            icon: Padding(padding: EdgeInsets.only(bottom: 4), child: Icon(Icons.receipt_long_rounded, size: 20)), 
+            label: 'INVOICES'
+          ),
+          BottomNavigationBarItem(
+            icon: Padding(padding: EdgeInsets.only(bottom: 4), child: Icon(Icons.account_balance_wallet_rounded, size: 20)), 
+            label: 'PAYOUTS'
+          ),
+          BottomNavigationBarItem(
+            icon: Padding(padding: EdgeInsets.only(bottom: 4), child: Icon(Icons.person_rounded, size: 20)), 
+            label: 'PROFILE'
+          ),
         ],
       ),
     );
