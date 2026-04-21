@@ -34,6 +34,12 @@ class _DashboardViewState extends State<DashboardView> {
     }
   }
 
+  String _calculateLevel(int customers) {
+    if (customers >= 250) return 'MASTER';
+    if (customers >= 100) return 'ADVISOR';
+    return 'ASSOCIATE';
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) return const Center(child: CircularProgressIndicator(color: Colors.black));
@@ -49,6 +55,8 @@ class _DashboardViewState extends State<DashboardView> {
             _buildWelcomeSection(),
             const SizedBox(height: 32),
             _buildStatsGrid(),
+            const SizedBox(height: 40),
+            _buildLevelProgress(),
             const SizedBox(height: 40),
             const Text(
               'RECENT ACTIVITY',
@@ -80,6 +88,8 @@ class _DashboardViewState extends State<DashboardView> {
   }
 
   Widget _buildStatsGrid() {
+    int totalInvoices = int.tryParse(_dashboardData?['total_invoices']?.toString() ?? '0') ?? 0;
+    
     return GridView.count(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
@@ -101,16 +111,69 @@ class _DashboardViewState extends State<DashboardView> {
           Colors.white,
         ),
         _buildStatCard(
-          'LEVEL', 
-          _dashboardData?['level'] ?? 'LEVEL 1',
+          'STATUS', 
+          _calculateLevel(totalInvoices),
           [const Color(0xFF757575), const Color(0xFF424242)],
           Colors.white,
         ),
         _buildStatCard(
-          'INVOICES', 
-          '${_dashboardData?['total_invoices'] ?? 0}',
+          'TOTAL INVOICES',
+          '$totalInvoices',
           [const Color(0xFF424242), const Color(0xFF212121)],
           Colors.white,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLevelProgress() {
+    int totalInvoices = int.tryParse(_dashboardData?['total_invoices']?.toString() ?? '0') ?? 0;
+    double progress = (totalInvoices / 250).clamp(0.0, 1.0); 
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'PARTNER GROWTH',
+          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900, letterSpacing: 1.5, color: Colors.black38),
+        ),
+        const SizedBox(height: 16),
+        Stack(
+          children: [
+            Container(
+              height: 12,
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(0.05),
+                borderRadius: BorderRadius.circular(6),
+              ),
+            ),
+            FractionallySizedBox(
+              widthFactor: progress,
+              child: Container(
+                height: 12,
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF607D8B), Color(0xFF455A64), Color(0xFF212121)],
+                    stops: [0.0, 0.4, 1.0],
+                  ),
+                  borderRadius: BorderRadius.circular(6),
+                  boxShadow: [
+                    BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 4, offset: const Offset(0, 2))
+                  ]
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        const Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            _LevelMarker(label: 'ASSOCIATE', color: Color(0xFF90A4AE)),
+            _LevelMarker(label: 'ADVISOR', color: Color(0xFF455A64)),
+            _LevelMarker(label: 'MASTER', color: Color(0xFF212121)),
+          ],
         ),
       ],
     );
@@ -207,6 +270,26 @@ class _DashboardViewState extends State<DashboardView> {
           ),
         );
       },
+    );
+  }
+}
+
+class _LevelMarker extends StatelessWidget {
+  final String label;
+  final Color color;
+  const _LevelMarker({required this.label, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Container(width: 6, height: 6, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+        const SizedBox(width: 6),
+        Text(
+          label, 
+          style: const TextStyle(fontSize: 8, fontWeight: FontWeight.w900, letterSpacing: 1, color: Colors.black45)
+        ),
+      ],
     );
   }
 }

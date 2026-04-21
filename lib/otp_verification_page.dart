@@ -20,9 +20,7 @@ class _OTPVerificationPageState extends State<OTPVerificationPage> {
     String otpStr = _controllers.map((e) => e.text).join();
     if (otpStr.length < 4) return;
 
-    setState(() {
-      _isLoading = true;
-    });
+    setState(() => _isLoading = true);
 
     try {
       final mobileNo = int.tryParse(widget.phoneNumber.replaceAll(RegExp(r'\D'), ''));
@@ -54,106 +52,149 @@ class _OTPVerificationPageState extends State<OTPVerificationPage> {
         );
       }
     } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        centerTitle: true,
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'VERIFICATION',
-              style: TextStyle(
-                fontSize: 32,
-                fontWeight: FontWeight.w900,
-                letterSpacing: 4,
+      backgroundColor: const Color(0xFFF8F8F8),
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 32.0, vertical: 20.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildBackButton(),
+              const SizedBox(height: 40),
+              const Text(
+                'VERIFICATION',
+                style: TextStyle(
+                  fontSize: 32,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: -1,
+                ),
               ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'ENTER THE 4-DIGIT CODE SENT TO ${widget.phoneNumber}',
-              style: const TextStyle(
-                fontSize: 12,
-                letterSpacing: 1.2,
-                fontWeight: FontWeight.w500,
+              const SizedBox(height: 8),
+              Text(
+                'ENTER THE 4-DIGIT CODE SENT TO ${widget.phoneNumber}',
+                style: TextStyle(
+                  fontSize: 12,
+                  letterSpacing: 0.5,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.black.withOpacity(0.4),
+                ),
               ),
-            ),
-            const SizedBox(height: 48),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: List.generate(4, (index) {
-                return SizedBox(
-                  width: 60,
-                  child: TextField(
-                    controller: _controllers[index],
-                    focusNode: _focusNodes[index],
-                    keyboardType: TextInputType.number,
-                    textAlign: TextAlign.center,
-                    maxLength: 1,
-                    style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-                    decoration: const InputDecoration(
-                      counterText: "",
-                    ),
-                    onChanged: (value) {
-                      if (value.isNotEmpty && index < 3) {
-                        _focusNodes[index + 1].requestFocus();
-                      } else if (value.isEmpty && index > 0) {
-                        _focusNodes[index - 1].requestFocus();
-                      }
-                      if (value.isNotEmpty && index == 3) {
-                        _verifyOTP();
-                      }
-                    },
+              const SizedBox(height: 60),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: List.generate(4, (index) => _buildOTPBox(index)),
+              ),
+              const SizedBox(height: 60),
+              SizedBox(
+                width: double.infinity,
+                height: 56,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.black,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    elevation: 0,
                   ),
-                );
-              }),
-            ),
-            const SizedBox(height: 48),
-            ElevatedButton(
-              onPressed: _isLoading ? null : _verifyOTP,
-              child: _isLoading
-                  ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                    )
-                  : const Text(
-                      'VERIFY & CONTINUE',
-                      style: TextStyle(
-                        letterSpacing: 2,
-                        fontWeight: FontWeight.bold,
-                      ),
+                  onPressed: _isLoading ? null : _verifyOTP,
+                  child: _isLoading
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                        )
+                      : const Text(
+                          'VERIFY IDENTITY',
+                          style: TextStyle(letterSpacing: 1, fontWeight: FontWeight.w900),
+                        ),
+                ),
+              ),
+              const SizedBox(height: 32),
+              Center(
+                child: TextButton(
+                  onPressed: _isLoading ? null : _resendOTP,
+                  child: Text(
+                    _isLoading ? "SENDING..." : "RESEND CODE",
+                    style: const TextStyle(
+                      color: Colors.black,
+                      fontWeight: FontWeight.w900,
+                      fontSize: 12,
+                      letterSpacing: 1,
+                      decoration: TextDecoration.underline,
                     ),
-            ),
-            const SizedBox(height: 24),
-            Center(
-              child: TextButton(
-                onPressed: _isLoading ? null : _resendOTP,
-                child: Text(
-                  _isLoading ? "SENDING..." : "RESEND CODE",
-                  style: const TextStyle(
-                    color: Colors.black,
-                    fontWeight: FontWeight.bold,
-                    decoration: TextDecoration.underline,
                   ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildBackButton() {
+    return InkWell(
+      onTap: () => Navigator.pop(context),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.black.withOpacity(0.05)),
+        ),
+        child: const Icon(Icons.arrow_back_ios_new, size: 16, color: Colors.black),
+      ),
+    );
+  }
+
+  Widget _buildOTPBox(int index) {
+    return Container(
+      width: 65,
+      height: 75,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Colors.white, Colors.black.withOpacity(0.02)],
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.black.withOpacity(0.05), width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.02),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: TextField(
+        controller: _controllers[index],
+        focusNode: _focusNodes[index],
+        keyboardType: TextInputType.number,
+        textAlign: TextAlign.center,
+        maxLength: 1,
+        style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w900, letterSpacing: 0),
+        decoration: const InputDecoration(
+          counterText: "",
+          border: InputBorder.none,
+          contentPadding: EdgeInsets.symmetric(vertical: 20),
+        ),
+        onChanged: (value) {
+          if (value.isNotEmpty && index < 3) {
+            _focusNodes[index + 1].requestFocus();
+          } else if (value.isEmpty && index > 0) {
+            _focusNodes[index - 1].requestFocus();
+          }
+          if (value.isNotEmpty && index == 3) {
+            _verifyOTP();
+          }
+        },
       ),
     );
   }
@@ -163,7 +204,6 @@ class _OTPVerificationPageState extends State<OTPVerificationPage> {
     try {
       final mobileNo = int.tryParse(widget.phoneNumber.replaceAll(RegExp(r'\D'), ''));
       if (mobileNo != null) {
-        // Calling getPartner again triggers a new OTP generation in your PHP
         final partner = await _apiService.getPartner(mobileNo);
         if (partner != null && mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
