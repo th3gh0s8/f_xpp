@@ -22,16 +22,14 @@ class _DashboardViewState extends State<DashboardView> {
   }
 
   Future<void> _loadData() async {
-    final mobileNo = int.tryParse(widget.phoneNumber.replaceAll(RegExp(r'\D'), ''));
-    if (mobileNo != null) {
-      final data = await _apiService.getDashboardData(mobileNo);
-      final invoices = await _apiService.getInvoices(mobileNo);
-      setState(() {
-        _dashboardData = data;
-        _recentInvoices = invoices;
-        _isLoading = false;
-      });
-    }
+    final mobileNo = widget.phoneNumber;
+    final data = await _apiService.getDashboardData(mobileNo);
+    final invoices = await _apiService.getInvoices(mobileNo);
+    setState(() {
+      _dashboardData = data;
+      _recentInvoices = invoices;
+      _isLoading = false;
+    });
   }
 
   String _calculateLevel(int customers) {

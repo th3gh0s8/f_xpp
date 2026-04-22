@@ -23,16 +23,14 @@ class _PayoutsViewState extends State<PayoutsView> {
   }
 
   Future<void> _fetchPayoutData() async {
-    final mobileNo = int.tryParse(widget.phoneNumber.replaceAll(RegExp(r'\D'), ''));
-    if (mobileNo != null) {
-      final payouts = await _apiService.getPayouts(mobileNo);
-      final dashboard = await _apiService.getDashboardData(mobileNo);
-      setState(() {
-        _payouts = payouts;
-        _dashboardData = dashboard;
-        _isLoading = false;
-      });
-    }
+    final mobileNo = widget.phoneNumber;
+    final payouts = await _apiService.getPayouts(mobileNo);
+    final dashboard = await _apiService.getDashboardData(mobileNo);
+    setState(() {
+      _payouts = payouts;
+      _dashboardData = dashboard;
+      _isLoading = false;
+    });
   }
 
   Future<void> _handlePayoutRequest() async {
@@ -43,20 +41,18 @@ class _PayoutsViewState extends State<PayoutsView> {
     }
 
     setState(() => _isRequesting = true);
-    final mobileNo = int.tryParse(widget.phoneNumber.replaceAll(RegExp(r'\D'), ''));
+    final mobileNo = widget.phoneNumber;
     
-    if (mobileNo != null) {
-      final result = await _apiService.requestPayout(mobileNo, balance);
+    final result = await _apiService.requestPayout(mobileNo, balance);
       
-      if (mounted) {
-        if (result['success']) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('PAYOUT REQUESTED SUCCESSFULLY')));
-          _fetchPayoutData();
-        } else if (result['code'] == 'MISSING_BANK') {
-          _showBankMissingDialog();
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(result['message'])));
-        }
+    if (mounted) {
+      if (result['success']) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('PAYOUT REQUESTED SUCCESSFULLY')));
+        _fetchPayoutData();
+      } else if (result['code'] == 'MISSING_BANK') {
+        _showBankMissingDialog();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(result['message'])));
       }
     }
     setState(() => _isRequesting = false);

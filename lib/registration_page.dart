@@ -5,7 +5,13 @@ import 'otp_verification_page.dart';
 
 class RegistrationPage extends StatefulWidget {
   final String mobileNo;
-  const RegistrationPage({super.key, required this.mobileNo});
+  final String countryCode;
+  
+  const RegistrationPage({
+    super.key, 
+    required this.mobileNo, 
+    required this.countryCode
+  });
 
   @override
   State<RegistrationPage> createState() => _RegistrationPageState();
@@ -29,11 +35,12 @@ class _RegistrationPageState extends State<RegistrationPage> {
       final partner = Partner(
         firstName: _firstNameController.text.trim(),
         lastName: _lastNameController.text.trim(),
-        mobileNo: int.parse(widget.mobileNo.replaceAll(RegExp(r'\D'), '')),
+        cCode: widget.countryCode.replaceAll('+', ''),
+        mobileNo: widget.mobileNo.replaceAll(RegExp(r'\D'), ''),
         email: _emailController.text.trim(),
-        bankAccountNo: 0, // Default to 0, to be updated in profile
-        bankName: '',     // Empty, to be updated in profile
-        bankAccountType: '', // Empty, to be updated in profile
+        bankAccountNo: '0', 
+        bankName: '',     
+        bankAccountType: '', 
       );
 
       final success = await _apiService.registerPartner(partner);
@@ -45,7 +52,10 @@ class _RegistrationPageState extends State<RegistrationPage> {
           );
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(
-              builder: (context) => OTPVerificationPage(phoneNumber: widget.mobileNo),
+              builder: (context) => OTPVerificationPage(
+                phoneNumber: partner.mobileNo,
+                displayPhoneNumber: '${widget.countryCode} ${widget.mobileNo}'
+              ),
             ),
           );
         }
@@ -70,52 +80,93 @@ class _RegistrationPageState extends State<RegistrationPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        centerTitle: true,
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24.0),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'CREATE ACCOUNT',
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, letterSpacing: 2),
-              ),
-              const SizedBox(height: 8),
-              Text('REGISTERING FOR: ${widget.mobileNo}', style: const TextStyle(fontWeight: FontWeight.bold)),
-              const SizedBox(height: 32),
-              TextFormField(
-                controller: _firstNameController,
-                decoration: const InputDecoration(labelText: 'FIRST NAME'),
-                validator: (v) => v!.isEmpty ? 'Required' : null,
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _lastNameController,
-                decoration: const InputDecoration(labelText: 'LAST NAME'),
-                validator: (v) => v!.isEmpty ? 'Required' : null,
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _emailController,
-                decoration: const InputDecoration(labelText: 'EMAIL'),
-                keyboardType: TextInputType.emailAddress,
-                validator: (v) => v!.isEmpty ? 'Required' : null,
-              ),
-              const SizedBox(height: 32),
-              ElevatedButton(
-                onPressed: _isLoading ? null : _handleRegister,
-                child: _isLoading
-                    ? const CircularProgressIndicator(color: Colors.white)
-                    : const Text('REGISTER & GET OTP', style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.5)),
-              ),
-            ],
+      backgroundColor: const Color(0xFFF8F8F8),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(32.0),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                GestureDetector(
+                  onTap: () => Navigator.pop(context),
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.black.withOpacity(0.05)),
+                    ),
+                    child: const Icon(Icons.arrow_back_ios_new, size: 16),
+                  ),
+                ),
+                const SizedBox(height: 40),
+                const Text(
+                  'JOIN XPOWER',
+                  style: TextStyle(fontSize: 32, fontWeight: FontWeight.w900, letterSpacing: -1.5),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'REGISTERING: ${widget.countryCode} ${widget.mobileNo}',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 1,
+                    color: Colors.black.withOpacity(0.4),
+                  ),
+                ),
+                const SizedBox(height: 48),
+                _buildField('FIRST NAME', _firstNameController),
+                const SizedBox(height: 24),
+                _buildField('LAST NAME', _lastNameController),
+                const SizedBox(height: 24),
+                _buildField('EMAIL ADDRESS', _emailController, keyboardType: TextInputType.emailAddress),
+                const SizedBox(height: 48),
+                SizedBox(
+                  width: double.infinity,
+                  height: 56,
+                  child: ElevatedButton(
+                    onPressed: _isLoading ? null : _handleRegister,
+                    child: _isLoading
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 3),
+                          )
+                        : const Text('INITIALIZE PARTNERSHIP'),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildField(String label, TextEditingController controller, {TextInputType? keyboardType}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 1.5, color: Colors.black38),
+        ),
+        const SizedBox(height: 8),
+        TextFormField(
+          controller: controller,
+          keyboardType: keyboardType,
+          style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
+          decoration: const InputDecoration(
+            contentPadding: EdgeInsets.symmetric(horizontal: 0, vertical: 12),
+            filled: false,
+            enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.black12)),
+            focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.black, width: 2)),
+          ),
+          validator: (v) => v!.isEmpty ? 'FIELD REQUIRED' : null,
+        ),
+      ],
     );
   }
 }

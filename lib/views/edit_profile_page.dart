@@ -29,8 +29,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
     _lastNameController = TextEditingController(text: widget.partner.lastName);
     _emailController = TextEditingController(text: widget.partner.email);
     _bankNameController = TextEditingController(text: widget.partner.bankName);
-    _accNoController = TextEditingController(text: widget.partner.bankAccountNo == 0 ? '' : widget.partner.bankAccountNo.toString());
-    _accType = widget.partner.bankAccountType == '' ? 'Savings' : widget.partner.bankAccountType;
+    _accNoController = TextEditingController(text: (widget.partner.bankAccountNo == '0' || widget.partner.bankAccountNo == '') ? '' : widget.partner.bankAccountNo);
+    _accType = (widget.partner.bankAccountType == null || widget.partner.bankAccountType == '') ? 'Savings' : widget.partner.bankAccountType;
   }
 
   Future<void> _handleSave() async {
@@ -42,8 +42,9 @@ class _EditProfilePageState extends State<EditProfilePage> {
       firstName: _firstNameController.text.trim(),
       lastName: _lastNameController.text.trim(),
       mobileNo: widget.partner.mobileNo,
+      cCode: widget.partner.cCode,
       email: _emailController.text.trim(),
-      bankAccountNo: int.tryParse(_accNoController.text.trim()) ?? 0,
+      bankAccountNo: _accNoController.text.trim(),
       bankName: _bankNameController.text.trim(),
       bankAccountType: _accType,
     );

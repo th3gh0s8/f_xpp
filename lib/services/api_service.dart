@@ -4,11 +4,13 @@ import '../models/partner.dart';
 import '../models/invoice.dart';
 
 class ApiService {
-  // Use 'localhost' or '127.0.0.1' if you are running the app on the Web or Windows.
-  // Note: This will NOT work on an Android Emulator or Physical Device.
-  static const String baseUrl = 'http://127.0.0.1/xpower_api';
+  // IMPORTANT: Replace '192.168.1.100' with your Computer's actual IPv4 Address
+  // Run 'ipconfig' in CMD to find it.
+  // Ensure your Phone and PC are on the same Wi-Fi network.
+  // REPLACE THIS with your actual IPv4 from 'ipconfig'
+  static const String baseUrl = 'http://192.168.1.150/xpower_api';
 
-  Future<Partner?> getPartner(int mobileNo) async {
+  Future<Partner?> getPartner(String mobileNo) async {
     try {
       final response = await http.get(
         Uri.parse('$baseUrl/get_partner.php?mobile_no=$mobileNo'),
@@ -26,13 +28,13 @@ class ApiService {
     return null;
   }
 
-  Future<bool> verifyOTP(int mobileNo, int otpCode) async {
+  Future<bool> verifyOTP(String mobileNo, String otpCode) async {
     try {
       final response = await http.post(
         Uri.parse('$baseUrl/verify_otp.php'),
         body: {
-          'mobile_no': mobileNo.toString(),
-          'otp_code': otpCode.toString(),
+          'mobile_no': mobileNo,
+          'otp_code': otpCode,
         },
       );
 
@@ -46,7 +48,7 @@ class ApiService {
     return false;
   }
 
-  Future<List<Invoice>> getInvoices(int mobileNo) async {
+  Future<List<Invoice>> getInvoices(String mobileNo) async {
     try {
       final response = await http.get(
         Uri.parse('$baseUrl/get_invoices.php?mobile_no=$mobileNo'),
@@ -73,6 +75,7 @@ class ApiService {
         body: {
           'first_name': partner.firstName,
           'last_name': partner.lastName,
+          'c_code': partner.cCode.toString(),
           'mobile_no': partner.mobileNo.toString(),
           'email': partner.email,
           'bank_account_no': partner.bankAccountNo.toString(),
@@ -91,7 +94,7 @@ class ApiService {
     return false;
   }
 
-  Future<Map<String, dynamic>?> getDashboardData(int mobileNo) async {
+  Future<Map<String, dynamic>?> getDashboardData(String mobileNo) async {
     try {
       final response = await http.get(
         Uri.parse('$baseUrl/get_dashboard_data.php?mobile_no=$mobileNo'),
@@ -106,7 +109,7 @@ class ApiService {
     return null;
   }
 
-  Future<List<Map<String, dynamic>>> getPayouts(int mobileNo) async {
+  Future<List<Map<String, dynamic>>> getPayouts(String mobileNo) async {
     try {
       final response = await http.get(
         Uri.parse('$baseUrl/get_payouts.php?mobile_no=$mobileNo'),
@@ -121,12 +124,12 @@ class ApiService {
     return [];
   }
 
-  Future<bool> updateBankDetails(int mobileNo, String bankName, String accNo, String type) async {
+  Future<bool> updateBankDetails(String mobileNo, String bankName, String accNo, String type) async {
     try {
       final response = await http.post(
         Uri.parse('$baseUrl/update_bank_details.php'),
         body: {
-          'mobile_no': mobileNo.toString(),
+          'mobile_no': mobileNo,
           'bank_account_no': accNo,
           'bank_name': bankName,
           'bank_account_type': type,
@@ -148,6 +151,7 @@ class ApiService {
         Uri.parse('$baseUrl/update_profile.php'),
         body: {
           'mobile_no': partner.mobileNo.toString(),
+          'c_code': partner.cCode.toString(),
           'first_name': partner.firstName,
           'last_name': partner.lastName,
           'email': partner.email,
@@ -166,12 +170,12 @@ class ApiService {
     return false;
   }
 
-  Future<Map<String, dynamic>> requestPayout(int mobileNo, double amount) async {
+  Future<Map<String, dynamic>> requestPayout(String mobileNo, double amount) async {
     try {
       final response = await http.post(
         Uri.parse('$baseUrl/request_payout.php'),
         body: {
-          'mobile_no': mobileNo.toString(),
+          'mobile_no': mobileNo,
           'amount': amount.toString(),
         },
       );

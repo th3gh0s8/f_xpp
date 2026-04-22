@@ -4,6 +4,7 @@ require_once 'db_config.php';
 
 $first_name = $_POST['first_name'] ?? '';
 $last_name = $_POST['last_name'] ?? '';
+$c_code = $_POST['c_code'] ?? '';
 $mobile_no = $_POST['mobile_no'] ?? '';
 $email = $_POST['email'] ?? '';
 $bank_account_no = $_POST['bank_account_no'] ?? '';
@@ -24,8 +25,8 @@ if ($check->get_result()->num_rows > 0) {
     exit;
 }
 
-$stmt = $conn->prepare("INSERT INTO partners (first_name, last_name, mobile_no, email, bank_account_no, bank_name, bank_account_type) VALUES (?, ?, ?, ?, ?, ?, ?)");
-$stmt->bind_param("sssssss", $first_name, $last_name, $mobile_no, $email, $bank_account_no, $bank_name, $bank_account_type);
+$stmt = $conn->prepare("INSERT INTO partners (first_name, last_name, c_code, mobile_no, email, bank_account_no, bank_name, bank_account_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+$stmt->bind_param("ssssssss", $first_name, $last_name, $c_code, $mobile_no, $email, $bank_account_no, $bank_name, $bank_account_type);
 
 if ($stmt->execute()) {
     // Insert into login_activity for registration

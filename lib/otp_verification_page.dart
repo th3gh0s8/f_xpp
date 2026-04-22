@@ -4,7 +4,8 @@ import 'services/api_service.dart';
 
 class OTPVerificationPage extends StatefulWidget {
   final String phoneNumber;
-  const OTPVerificationPage({super.key, required this.phoneNumber});
+  final String displayPhoneNumber;
+  const OTPVerificationPage({super.key, required this.phoneNumber, required this.displayPhoneNumber});
 
   @override
   State<OTPVerificationPage> createState() => _OTPVerificationPageState();
@@ -23,26 +24,21 @@ class _OTPVerificationPageState extends State<OTPVerificationPage> {
     setState(() => _isLoading = true);
 
     try {
-      final mobileNo = int.tryParse(widget.phoneNumber.replaceAll(RegExp(r'\D'), ''));
-      final otpCode = int.tryParse(otpStr);
-
-      if (mobileNo != null && otpCode != null) {
-        bool isValid = await _apiService.verifyOTP(mobileNo, otpCode);
-        if (isValid) {
-          if (mounted) {
-            Navigator.of(context).pushAndRemoveUntil(
-              MaterialPageRoute(
-                builder: (context) => DashboardPage(phoneNumber: widget.phoneNumber),
-              ),
-              (route) => false,
-            );
-          }
-        } else {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('INVALID OTP. PLEASE TRY AGAIN.')),
-            );
-          }
+      bool isValid = await _apiService.verifyOTP(widget.phoneNumber, otpStr);
+      if (isValid) {
+        if (mounted) {
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(
+              builder: (context) => DashboardPage(phoneNumber: widget.phoneNumber),
+            ),
+            (route) => false,
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('INVALID OTP. PLEASE TRY AGAIN.')),
+          );
         }
       }
     } catch (e) {
@@ -61,77 +57,79 @@ class _OTPVerificationPageState extends State<OTPVerificationPage> {
     return Scaffold(
       backgroundColor: const Color(0xFFF8F8F8),
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 32.0, vertical: 20.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildBackButton(),
-              const SizedBox(height: 40),
-              const Text(
-                'VERIFICATION',
-                style: TextStyle(
-                  fontSize: 32,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: -1,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'ENTER THE 4-DIGIT CODE SENT TO ${widget.phoneNumber}',
-                style: TextStyle(
-                  fontSize: 12,
-                  letterSpacing: 0.5,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.black.withOpacity(0.4),
-                ),
-              ),
-              const SizedBox(height: 60),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: List.generate(4, (index) => _buildOTPBox(index)),
-              ),
-              const SizedBox(height: 60),
-              SizedBox(
-                width: double.infinity,
-                height: 56,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.black,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                    elevation: 0,
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 32.0, vertical: 20.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildBackButton(),
+                const SizedBox(height: 40),
+                const Text(
+                  'VERIFICATION',
+                  style: TextStyle(
+                    fontSize: 32,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: -1,
                   ),
-                  onPressed: _isLoading ? null : _verifyOTP,
-                  child: _isLoading
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                        )
-                      : const Text(
-                          'VERIFY IDENTITY',
-                          style: TextStyle(letterSpacing: 1, fontWeight: FontWeight.w900),
-                        ),
                 ),
-              ),
-              const SizedBox(height: 32),
-              Center(
-                child: TextButton(
-                  onPressed: _isLoading ? null : _resendOTP,
-                  child: Text(
-                    _isLoading ? "SENDING..." : "RESEND CODE",
-                    style: const TextStyle(
-                      color: Colors.black,
-                      fontWeight: FontWeight.w900,
-                      fontSize: 12,
-                      letterSpacing: 1,
-                      decoration: TextDecoration.underline,
+                const SizedBox(height: 8),
+                Text(
+                  'ENTER THE 4-DIGIT CODE SENT TO ${widget.displayPhoneNumber}',
+                  style: TextStyle(
+                    fontSize: 12,
+                    letterSpacing: 0.5,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.black.withOpacity(0.4),
+                  ),
+                ),
+                const SizedBox(height: 60),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: List.generate(4, (index) => _buildOTPBox(index)),
+                ),
+                const SizedBox(height: 60),
+                SizedBox(
+                  width: double.infinity,
+                  height: 56,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.black,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      elevation: 0,
+                    ),
+                    onPressed: _isLoading ? null : _verifyOTP,
+                    child: _isLoading
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                          )
+                        : const Text(
+                            'VERIFY IDENTITY',
+                            style: TextStyle(letterSpacing: 1, fontWeight: FontWeight.w900),
+                          ),
+                  ),
+                ),
+                const SizedBox(height: 32),
+                Center(
+                  child: TextButton(
+                    onPressed: _isLoading ? null : _resendOTP,
+                    child: Text(
+                      _isLoading ? "SENDING..." : "RESEND CODE",
+                      style: const TextStyle(
+                        color: Colors.black,
+                        fontWeight: FontWeight.w900,
+                        fontSize: 12,
+                        letterSpacing: 1,
+                        decoration: TextDecoration.underline,
+                      ),
                     ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -202,14 +200,11 @@ class _OTPVerificationPageState extends State<OTPVerificationPage> {
   Future<void> _resendOTP() async {
     setState(() => _isLoading = true);
     try {
-      final mobileNo = int.tryParse(widget.phoneNumber.replaceAll(RegExp(r'\D'), ''));
-      if (mobileNo != null) {
-        final partner = await _apiService.getPartner(mobileNo);
-        if (partner != null && mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('NEW OTP SENT SUCCESSFULLY')),
-          );
-        }
+      final partner = await _apiService.getPartner(widget.phoneNumber);
+      if (partner != null && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('NEW OTP SENT SUCCESSFULLY')),
+        );
       }
     } catch (e) {
       if (mounted) {

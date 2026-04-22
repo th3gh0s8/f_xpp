@@ -25,14 +25,12 @@ class _ProfileViewState extends State<ProfileView> {
   Future<void> _fetchPartnerData() async {
     setState(() => _isLoading = true);
     try {
-      final mobileNo = int.tryParse(widget.phoneNumber.replaceAll(RegExp(r'\D'), ''));
-      if (mobileNo != null) {
-        final partner = await _apiService.getPartner(mobileNo);
-        setState(() {
-          _partner = partner;
-          _isLoading = false;
-        });
-      }
+      final mobileNo = widget.phoneNumber;
+      final partner = await _apiService.getPartner(mobileNo);
+      setState(() {
+        _partner = partner;
+        _isLoading = false;
+      });
     } catch (e) {
       setState(() => _isLoading = false);
     }
@@ -61,7 +59,7 @@ class _ProfileViewState extends State<ProfileView> {
             'BANKING DETAILS',
             [
               _buildModernTile(Icons.account_balance, 'BANK NAME', _partner?.bankName?.toUpperCase() ?? 'NOT CONFIGURED'),
-              _buildModernTile(Icons.tag, 'ACCOUNT NO', _partner?.bankAccountNo == 0 ? 'NOT CONFIGURED' : _partner?.bankAccountNo.toString() ?? 'NOT CONFIGURED'),
+              _buildModernTile(Icons.tag, 'ACCOUNT NO', (_partner?.bankAccountNo == null || _partner?.bankAccountNo == '0' || _partner?.bankAccountNo == '') ? 'NOT CONFIGURED' : _partner!.bankAccountNo),
               _buildModernTile(Icons.payments, 'BRANCH / TYPE', _partner?.bankAccountType?.toUpperCase() ?? 'NOT CONFIGURED'),
             ],
           ),

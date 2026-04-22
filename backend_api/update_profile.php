@@ -3,6 +3,7 @@ header('Content-Type: application/json');
 require_once 'db_config.php';
 
 $mobile_no = $_POST['mobile_no'] ?? '';
+$c_code = $_POST['c_code'] ?? '';
 $first_name = $_POST['first_name'] ?? '';
 $last_name = $_POST['last_name'] ?? '';
 $email = $_POST['email'] ?? '';
@@ -15,8 +16,8 @@ if (empty($mobile_no)) {
     exit;
 }
 
-$stmt = $conn->prepare("UPDATE partners SET first_name = ?, last_name = ?, email = ?, bank_account_no = ?, bank_name = ?, bank_account_type = ? WHERE mobile_no = ?");
-$stmt->bind_param("sssisss", $first_name, $last_name, $email, $bank_account_no, $bank_name, $bank_account_type, $mobile_no);
+$stmt = $conn->prepare("UPDATE partners SET first_name = ?, last_name = ?, c_code = ?, email = ?, bank_account_no = ?, bank_name = ?, bank_account_type = ? WHERE mobile_no = ?");
+$stmt->bind_param("ssssssss", $first_name, $last_name, $c_code, $email, $bank_account_no, $bank_name, $bank_account_type, $mobile_no);
 
 if ($stmt->execute()) {
     echo json_encode(["success" => true, "message" => "Profile updated successfully"]);
