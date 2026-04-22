@@ -72,7 +72,7 @@ class _ProfileViewState extends State<ProfileView> {
             if (updated == true) _fetchPartnerData();
           }),
           const SizedBox(height: 12),
-          _buildActionButton('LOGOUT SESSION', Icons.power_settings_new, () {
+          _buildActionButton('LOGOUT', Icons.power_settings_new, () {
              Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
           }, isDestructive: true),
           const SizedBox(height: 40),

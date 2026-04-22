@@ -117,7 +117,17 @@ class _LoginPageState extends State<LoginPage> {
                 style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
                 decoration: InputDecoration(
                   labelText: 'MOBILE NUMBER',
+                  labelStyle: TextStyle(
+                    color: Colors.black.withOpacity(0.4),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w900,
+                  ),
                   hintText: '77 123 4567',
+                  hintStyle: TextStyle(
+                    color: Colors.black.withOpacity(0.2),
+                    fontWeight: FontWeight.w500,
+                    fontSize: 16,
+                  ),
                   floatingLabelBehavior: FloatingLabelBehavior.always,
                   fillColor: Colors.white,
                   filled: true,

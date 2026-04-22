@@ -86,17 +86,23 @@ class _DashboardViewState extends State<DashboardView> {
   }
 
   Widget _buildWelcomeSection() {
+    bool hasPartner = _partner != null;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'WELCOME BACK,',
+          hasPartner ? 'WELCOME BACK,' : 'WELCOME,',
           style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900, letterSpacing: 1, color: Colors.black.withOpacity(0.4)),
         ),
         const SizedBox(height: 4),
         Text(
-          _partner != null ? '${_partner!.firstName} ${_partner!.lastName}'.toUpperCase() : widget.phoneNumber,
-          style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w900, letterSpacing: -1),
+          hasPartner ? '${_partner!.firstName} ${_partner!.lastName}'.toUpperCase() : widget.phoneNumber,
+          style: TextStyle(
+            fontSize: hasPartner ? 28 : 20, 
+            fontWeight: FontWeight.w900, 
+            letterSpacing: hasPartner ? -1 : 0,
+            color: hasPartner ? Colors.black : Colors.black54,
+          ),
         ),
       ],
     );
