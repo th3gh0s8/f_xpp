@@ -57,15 +57,18 @@ class ApiService {
       );
 
       if (response.statusCode == 200) {
+        print('DEBUG: Invoices Raw Response: ${response.body}');
         final data = json.decode(response.body);
         if (data['success'] == true) {
           return (data['data'] as List)
               .map((item) => Invoice.fromJson(item))
               .toList();
         }
+      } else {
+        print('DEBUG: Invoices API Error Status: ${response.statusCode}');
       }
     } catch (e) {
-      print('API Error: $e');
+      print('API Error (getInvoices): $e');
     }
     return [];
   }

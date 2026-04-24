@@ -13,8 +13,22 @@ if (empty($mobile_no)) {
     exit;
 }
 
-$stmt = $conn->prepare("SELECT * FROM invoices WHERE partner_tb = ?");
-$stmt->bind_param("s", $mobile_no); // Changed to 's' as mobile_no is usually a string
+// 1. Resolve Partner's internal numeric ID first
+$stmtP = $conn->prepare("SELECT ID FROM partners WHERE mobile_no = ?");
+$stmtP->bind_param("s", $mobile_no);
+$stmtP->execute();
+$partner = $stmtP->get_result()->fetch_assoc();
+$partner_id = $partner['ID'] ?? 0;
+
+if ($partner_id == 0) {
+    echo json_encode(["success" => false, "message" => "Partner not found"]);
+    exit;
+}
+
+// 2. Query invoices using the resolved numeric partner_id
+// Column partner_tb is int(11) based on your schema
+$stmt = $conn->prepare("SELECT * FROM invoices WHERE partner_tb = ? ORDER BY date DESC, time DESC");
+$stmt->bind_param("i", $partner_id);
 $stmt->execute();
 $result = $stmt->get_result();
 
