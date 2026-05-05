@@ -54,35 +54,39 @@ class LevelBenefitsPage extends StatelessWidget {
               const Color(0xFFC62828),
               '20%',
             ),
-            const SizedBox(height: 32),
-            SizedBox(
-              width: double.infinity,
-              height: 56,
-              child: ElevatedButton(
-                onPressed: () => Navigator.push(
-                  context, 
-                  MaterialPageRoute(builder: (context) => const CommissionCalculatorPage())
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.black,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                ),
-                child: const Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.calculate_outlined, size: 20),
-                    SizedBox(width: 12),
-                    Text('EARNINGS CALCULATOR', style: TextStyle(letterSpacing: 1, fontWeight: FontWeight.w900)),
-                  ],
-                ),
-              ),
-            ),
             const SizedBox(height: 40),
             _buildExplanationSection(),
             const SizedBox(height: 40),
             _buildIncomePotentialTable(),
             const SizedBox(height: 40),
+            _buildCalculatorButton(context),
+            const SizedBox(height: 40),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCalculatorButton(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      height: 56,
+      child: ElevatedButton(
+        onPressed: () => Navigator.push(
+          context, 
+          MaterialPageRoute(builder: (context) => const CommissionCalculatorPage())
+        ),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.black,
+          foregroundColor: Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        ),
+        child: const Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.calculate_outlined, size: 20),
+            SizedBox(width: 12),
+            Text('EARNINGS CALCULATOR', style: TextStyle(letterSpacing: 1, fontWeight: FontWeight.w900)),
           ],
         ),
       ),

@@ -10,7 +10,7 @@ class ApiService {
   // Run 'ipconfig' in CMD to find it.
   // Ensure your Phone and PC are on the same Wi-Fi network.
   // REPLACE THIS with your actual IPv4 from 'ipconfig'
-  static const String baseUrl = 'http://192.168.1.150/xpower_api';
+  static const String baseUrl = 'https://powersoftt.com/xPowerPartners';
 
   Future<Partner?> getPartner(String mobileNo) async {
     try {
