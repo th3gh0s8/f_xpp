@@ -37,22 +37,18 @@ class _DashboardViewState extends State<DashboardView> {
         _partner = partner;
         _isLoading = false;
       });
+      print('DEBUG: Dashboard Data: $_dashboardData');
     } catch (e) {
+      print('DEBUG: Dashboard Load Error: $e');
       setState(() => _isLoading = false);
     }
   }
 
-  String _calculateLevel(int customers) {
-    if (customers >= 250) return 'MASTER';
-    if (customers >= 100) return 'ADVISOR';
-    return 'ASSOCIATE';
-  }
-
   List<Color> _getLevelColors(String level) {
-    switch (level) {
-      case 'MASTER': return [const Color(0xFFC62828), const Color(0xFF8E0000)]; // Ruby
-      case 'ADVISOR': return [const Color(0xFF2E7D32), const Color(0xFF1B5E20)]; // Emerald
-      default: return [const Color(0xFF9C27B0), const Color(0xFF6A1B9A)]; // Amethyst
+    switch (level.toUpperCase()) {
+      case 'MASTER': return [const Color(0xFFC62828), const Color(0xFF8E0000)]; 
+      case 'ADVISOR': return [const Color(0xFF2E7D32), const Color(0xFF1B5E20)]; 
+      default: return [const Color(0xFF9C27B0), const Color(0xFF6A1B9A)]; 
     }
   }
 
@@ -111,10 +107,11 @@ class _DashboardViewState extends State<DashboardView> {
   }
 
   Widget _buildStatsGrid() {
-    int totalCustomers = int.tryParse(_dashboardData?['total_customers']?.toString() ?? '0') ?? 0;
-    // Single Source of Truth: Get Level and Rate from API
-    String apiLevel = _dashboardData?['level']?.toString() ?? 'ASSOCIATE';
-    String commRate = _dashboardData?['commission_rate']?.toString() ?? '10%';
+    // Robust parsing for all stats
+    final data = _dashboardData;
+    int totalCustomers = int.tryParse(data?['total_customers']?.toString() ?? '0') ?? 0;
+    double pending = double.tryParse(data?['pending_payouts']?.toString() ?? '0') ?? 0;
+    String apiLevel = data?['level']?.toString() ?? 'ASSOCIATE';
     
     return GridView.count(
       shrinkWrap: true,
@@ -126,19 +123,19 @@ class _DashboardViewState extends State<DashboardView> {
       children: [
         _buildStatCard(
           'TOTAL EARNED', 
-          'LKR ${_dashboardData?['total_earned'] ?? '0.00'}',
+          'LKR ${data?['total_earned'] ?? '0.00'}',
           [const Color(0xFF212121), Colors.black],
           Colors.white,
         ),
         _buildStatCard(
           'PENDING', 
-          'LKR ${_dashboardData?['pending_payouts'] ?? '0.00'}',
+          'LKR ${pending.toStringAsFixed(2)}',
           [const Color(0xFF424242), const Color(0xFF212121)],
           Colors.white,
         ),
         _buildStatCard(
           'STATUS', 
-          apiLevel, // Removed ($commRate) to clean up the UI
+          apiLevel.toUpperCase(),
           _getLevelColors(apiLevel),
           Colors.white,
         ),
@@ -153,9 +150,14 @@ class _DashboardViewState extends State<DashboardView> {
   }
 
   Widget _buildLevelProgress() {
-    int totalCustomers = int.tryParse(_dashboardData?['total_customers']?.toString() ?? '0') ?? 0;
-    double progress = (totalCustomers / 250).clamp(0.0, 1.0); 
-    String apiLevel = _dashboardData?['level']?.toString() ?? 'ASSOCIATE';
+    final data = _dashboardData;
+    int totalCustomers = int.tryParse(data?['total_customers']?.toString() ?? '0') ?? 0;
+    
+    // Ensure progress is at least visible if there are customers
+    double progress = (totalCustomers / 250).clamp(0.01, 1.0); 
+    if (totalCustomers == 0) progress = 0.0;
+
+    String apiLevel = data?['level']?.toString() ?? 'ASSOCIATE';
     List<Color> levelColors = _getLevelColors(apiLevel);
 
     return Column(
@@ -164,9 +166,9 @@ class _DashboardViewState extends State<DashboardView> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text(
-              'PARTNER GROWTH',
-              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900, letterSpacing: 1.5, color: Colors.black38),
+            Text(
+              'PARTNER GROWTH ($totalCustomers / 250)', 
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w900, letterSpacing: 1.5, color: Colors.black38),
             ),
             GestureDetector(
               onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const LevelBenefitsPage())),
@@ -193,9 +195,7 @@ class _DashboardViewState extends State<DashboardView> {
               child: Container(
                 height: 12,
                 decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: levelColors,
-                  ),
+                  gradient: LinearGradient(colors: levelColors),
                   borderRadius: BorderRadius.circular(6),
                   boxShadow: [
                     BoxShadow(color: levelColors[0].withOpacity(0.3), blurRadius: 4, offset: const Offset(0, 2))
@@ -229,13 +229,6 @@ class _DashboardViewState extends State<DashboardView> {
         ),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: Colors.black.withOpacity(0.1), width: 1),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -243,23 +236,13 @@ class _DashboardViewState extends State<DashboardView> {
         children: [
           Text(
             label, 
-            style: TextStyle(
-              fontSize: 9, 
-              fontWeight: FontWeight.w900, 
-              letterSpacing: 0.5, 
-              color: textColor.withOpacity(0.5)
-            )
+            style: TextStyle(fontSize: 9, fontWeight: FontWeight.w900, letterSpacing: 0.5, color: textColor.withOpacity(0.5))
           ),
           const SizedBox(height: 8),
           FittedBox(
             child: Text(
               value, 
-              style: TextStyle(
-                fontSize: 18, 
-                fontWeight: FontWeight.w900, 
-                color: textColor,
-                letterSpacing: -0.5
-              )
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: textColor, letterSpacing: -0.5)
             )
           ),
         ],
@@ -298,21 +281,12 @@ class _DashboardViewState extends State<DashboardView> {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        'INV-${invoice.id}', 
-                        style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 14)
-                      ),
+                      Text('INV-${invoice.id}', style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 14)),
                       const SizedBox(height: 4),
-                      Text(
-                        '${invoice.date.toString().split(' ')[0]}', 
-                        style: TextStyle(fontSize: 11, color: Colors.black.withOpacity(0.3), fontWeight: FontWeight.w700)
-                      ),
+                      Text('${invoice.date.toString().split(' ')[0]}', style: TextStyle(fontSize: 11, color: Colors.black.withOpacity(0.3), fontWeight: FontWeight.w700)),
                     ],
                   ),
-                  Text(
-                    'LKR ${invoice.comAmount}', 
-                    style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 15, letterSpacing: -0.5)
-                  ),
+                  Text('LKR ${invoice.comAmount}', style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 15, letterSpacing: -0.5)),
                 ],
               ),
             ),
