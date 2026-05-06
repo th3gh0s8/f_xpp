@@ -386,7 +386,7 @@ function build_url($page, $limit, $search) {
                     <i class="fas fa-project-diagram me-1"></i> Join Builder
                 </button>
             <?php endif; ?>
-            <a href="db_master.php" class="btn btn-outline-secondary btn-sm ms-2"><i class="fas fa-sync-alt"></i></a>
+            <a href="db_ed_new.php" class="btn btn-outline-secondary btn-sm ms-2"><i class="fas fa-sync-alt"></i></a>
         </div>
     </div>
 

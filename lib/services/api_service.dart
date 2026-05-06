@@ -13,10 +13,18 @@ class ApiService {
   static const String baseUrl = 'https://powersoftt.com/xPowerPartners';
 
   Future<Partner?> getPartner(String mobileNo) async {
+    // FORCE CLEAN: Remove +, country code, and leading zeros
+    String cleanNo = mobileNo.replaceAll(RegExp(r'\D'), '');
+    if (cleanNo.startsWith('94')) cleanNo = cleanNo.substring(2);
+    if (cleanNo.startsWith('0')) cleanNo = cleanNo.substring(1);
+
+    final url = '$baseUrl/get_partner.php?mobile_no=$cleanNo';
+    print('DEBUG: [getPartner] Requesting: $url');
+    
     try {
-      final response = await http.get(
-        Uri.parse('$baseUrl/get_partner.php?mobile_no=$mobileNo'),
-      );
+      final response = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 10));
+      print('DEBUG: [getPartner] Status Code: ${response.statusCode}');
+      print('DEBUG: [getPartner] Raw Body: ${response.body}');
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
@@ -25,7 +33,7 @@ class ApiService {
         }
       }
     } catch (e) {
-      print('API Error: $e');
+      print('DEBUG: [getPartner] CONNECTION FAILED: $e');
     }
     return null;
   }

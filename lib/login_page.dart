@@ -41,7 +41,9 @@ class _LoginPageState extends State<LoginPage> {
       if (mobileNo.isEmpty) throw Exception('INVALID MOBILE NUMBER');
 
       // Check if partner exists
+      print('DEBUG: Attempting login to: ${ApiService.baseUrl}/get_partner.php?mobile_no=$mobileNo');
       final partner = await _apiService.getPartner(mobileNo);
+      print('DEBUG: Partner response: $partner');
 
       if (partner != null) {
         if (mounted) {

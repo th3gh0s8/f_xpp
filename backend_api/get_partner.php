@@ -1,51 +1,52 @@
 <?php
+// CRITICAL DEBUG VERSION - FIND THE SILENT FAILURE
 header('Content-Type: application/json');
 require_once 'db_config.php';
 
 $mobile_no = $_GET['mobile_no'] ?? '';
 
 if (empty($mobile_no)) {
-    echo json_encode(["success" => false, "message" => "Mobile number is required"]);
-    exit;
+    die(json_encode(["success" => false, "message" => "Empty mobile number"]));
 }
 
-$stmt = $conn->prepare("SELECT * FROM partners WHERE mobile_no = ?");
-$stmt->bind_param("s", $mobile_no);
-$stmt->execute();
-$result = $stmt->get_result();
+try {
+    // 1. Search for partner
+    $stmt = $conn->prepare("SELECT first_name FROM partners WHERE mobile_no = ? LIMIT 1");
+    $stmt->bind_param("s", $mobile_no);
+    $stmt->execute();
+    $result = $stmt->get_result();
 
-if ($result->num_rows > 0) {
-    $partner = $result->fetch_assoc();
+    if ($result->num_rows > 0) {
+        $partner = $result->fetch_assoc();
+        $otp = rand(1000, 9999);
+        $now = date('Y-m-d H:i:s');
 
-    // Generate a random 4-digit OTP
-    $otp = rand(1000, 9999);
+        // FORCE EXPIRE OLD
+        $conn->query("UPDATE web_codes SET status = 1 WHERE u_Id = '$mobile_no'");
 
-    $u_id = $partner['mobile_no'];
-    $now = date('Y-m-d H:i:s');
+        // 2. TRY THE INSERT
+        $insert = $conn->prepare("INSERT INTO web_codes (u_Id, otp_code, time, status) VALUES (?, ?, ?, 0)");
+        $insert->bind_param("sis", $mobile_no, $otp, $now);
 
-    // EXPIRE PREVIOUS CODES: Mark all existing OTPs for this user as expired (status = 1)
-    $expire_stmt = $conn->prepare("UPDATE web_codes SET status = 1 WHERE u_Id = ? AND status = 0");
-    $expire_stmt->bind_param("s", $u_id);
-    $expire_stmt->execute();
-    $expire_stmt->close();
-
-    // Insert the new active OTP (status = 0)
-    $otp_stmt = $conn->prepare("INSERT INTO web_codes (u_Id, otp_code, time, status) VALUES (?, ?, ?, 0)");
-    $otp_stmt->bind_param("sis", $u_id, $otp, $now);
-    $otp_stmt->execute();
-    $otp_stmt->close();
-
-    // In a real app, you would send this OTP via SMS here
-    // For now, we will return it in the response so you can see it while testing
-    echo json_encode([
-        "success" => true,
-        "data" => $partner,
-        "debug_otp" => $otp // REMOVE THIS IN PRODUCTION
-    ]);
-} else {
-    echo json_encode(["success" => false, "message" => "Partner not found"]);
+        if ($insert->execute()) {
+            echo json_encode([
+                "success" => true,
+                "data" => $partner,
+                "debug_otp" => $otp
+            ]);
+        } else {
+            // THIS WILL TELL US EXACTLY WHY IT FAILED (e.g. Constraint fails)
+            echo json_encode([
+                "success" => false,
+                "message" => "DATABASE REJECTED INSERT",
+                "sql_error" => $insert->error
+            ]);
+        }
+    } else {
+        echo json_encode(["success" => false, "message" => "Mobile $mobile_no not found in partners table"]);
+    }
+} catch (Exception $e) {
+    echo json_encode(["success" => false, "message" => "PHP Crash: " . $e->getMessage()]);
 }
-
-$stmt->close();
 $conn->close();
 ?>
