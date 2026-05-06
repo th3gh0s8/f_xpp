@@ -4,7 +4,7 @@ header('Cache-Control: no-cache, no-store, must-revalidate');
 header('Pragma: no-cache');
 header('Expires: 0');
 
-require_once 'db_config.php';
+require_once 'db/db_config.php';
 
 $mobile_no = $_GET['mobile_no'] ?? '';
 

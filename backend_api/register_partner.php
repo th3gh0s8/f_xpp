@@ -5,7 +5,7 @@ ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
 header('Content-Type: application/json');
-require_once 'db_config.php';
+require_once 'db/db_config.php';
 
 $first_name = $_POST['first_name'] ?? '';
 $last_name = $_POST['last_name'] ?? '';
@@ -50,15 +50,15 @@ try {
         // 4. Generate and Save OTP
         $otp = rand(1000, 9999);
 
-        // Expire previous codes for this ID
+        // Expire previous codes for this mobile number
         $expire_stmt = $conn->prepare("UPDATE web_codes SET status = 1 WHERE u_Id = ? AND status = 0");
-        $expire_stmt->bind_param("s", $partner_id);
+        $expire_stmt->bind_param("s", $mobile_no);
         $expire_stmt->execute();
         $expire_stmt->close();
 
         // Insert new code
         $otp_stmt = $conn->prepare("INSERT INTO web_codes (u_Id, otp_code, time, status) VALUES (?, ?, ?, 0)");
-        $otp_stmt->bind_param("sis", $partner_id, $otp, $now);
+        $otp_stmt->bind_param("sis", $mobile_no, $otp, $now);
 
         if ($otp_stmt->execute()) {
             echo json_encode([

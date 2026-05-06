@@ -1,7 +1,7 @@
 <?php
 session_start();
 
-if (isset($_GET['code']) && $_GET['code'] === '12236') {
+if (isset($_GET['xd']) && $_GET['xd'] === '12236') {
     $_SESSION['authenticated'] = true;
 }
 
@@ -66,7 +66,24 @@ if (isset($_POST['delete_row'])) {
     } else { $msg = "Error: " . $conn->error; $msg_type = "danger"; }
 }
 
-// 4. Update Row
+// 4. Batch Delete
+if (isset($_POST['batch_delete'])) {
+    $conn->select_db($_POST['db']);
+    $tbl = $conn->real_escape_string($_POST['table']);
+    $pk_col = $_POST['pk_col'];
+    $ids = $_POST['selected_ids'];
+    
+    $escaped_ids = array_map(function($id) use ($conn) {
+        return "'" . $conn->real_escape_string($id) . "'";
+    }, $ids);
+    
+    $sql_batch = "DELETE FROM `$tbl` WHERE `$pk_col` IN (" . implode(',', $escaped_ids) . ")";
+    if ($conn->query($sql_batch)) {
+        $msg = "Successfully deleted " . count($ids) . " rows."; $msg_type = "success";
+    } else { $msg = "Error: " . $conn->error; $msg_type = "danger"; }
+}
+
+// 5. Update Row
 if (isset($_POST['update_row_submit'])) {
     $conn->select_db($_POST['target_db']);
     $tbl = $conn->real_escape_string($_POST['target_table']);
@@ -173,6 +190,62 @@ if (isset($_POST['insert_data_submit'])) {
         $msg = "Inserted $success_count rows. Failed $error_count rows. Error: $last_error";
         $msg_type = "warning";
     }
+}
+
+// --- STRUCTURE CHANGE HANDLERS ---
+if (isset($_POST['alter_column_submit'])) {
+    $target_db = $_POST['target_db'];
+    $target_table = $_POST['target_table'];
+    $conn->select_db($target_db);
+    
+    $mode = $_POST['col_mode']; 
+    $old_name = $_POST['old_col_name'];
+    $new_name = $conn->real_escape_string($_POST['col_name']);
+    $type = $_POST['col_type'];
+    $length = $_POST['col_length'];
+    $nullable = ($_POST['col_nullable'] == 'YES') ? 'NULL' : 'NOT NULL';
+    $default = $_POST['col_default'];
+    $extra = $_POST['col_extra']; 
+
+    $type_str = $type . ($length ? "($length)" : "");
+    $default_str = "";
+    if ($default !== '') {
+        if (strtoupper($default) == 'CURRENT_TIMESTAMP') $default_str = "DEFAULT CURRENT_TIMESTAMP";
+        else if (strtoupper($default) == 'NULL') $default_str = "DEFAULT NULL";
+        else $default_str = "DEFAULT '" . $conn->real_escape_string($default) . "'";
+    }
+
+    if ($mode == 'add') {
+        $after = $_POST['col_after'];
+        $sql = "ALTER TABLE `$target_table` ADD COLUMN `$new_name` $type_str $nullable $default_str $extra";
+        if ($after == 'FIRST') $sql .= " FIRST";
+        elseif ($after) $sql .= " AFTER `$after`";
+    } else {
+        $sql = "ALTER TABLE `$target_table` CHANGE COLUMN `$old_name` `$new_name` $type_str $nullable $default_str $extra";
+    }
+
+    if ($conn->query($sql)) {
+        $msg = "Column " . ($mode == 'add' ? "added" : "modified") . " successfully.";
+        $msg_type = "success";
+    } else { $msg = "Error: " . $conn->error; $msg_type = "danger"; }
+}
+
+if (isset($_GET['action']) && $_GET['action'] === 'drop_column' && isset($_GET['db']) && isset($_GET['table']) && isset($_GET['column'])) {
+    $conn->select_db($_GET['db']);
+    $target_tbl = $conn->real_escape_string($_GET['table']);
+    $target_col = $conn->real_escape_string($_GET['column']);
+    if ($conn->query("ALTER TABLE `$target_tbl` DROP COLUMN `$target_col`")) {
+        header("Location: ?db=".$_GET['db']."&table=$target_tbl&msg=Column dropped&type=success"); exit;
+    } else { $msg = "Error: " . $conn->error; $msg_type = "danger"; }
+}
+
+if (isset($_GET['action']) && $_GET['action'] === 'make_pk' && isset($_GET['db']) && isset($_GET['table']) && isset($_GET['column'])) {
+    $conn->select_db($_GET['db']);
+    $target_tbl = $conn->real_escape_string($_GET['table']);
+    $target_col = $conn->real_escape_string($_GET['column']);
+    if ($conn->query("ALTER TABLE `$target_tbl` ADD PRIMARY KEY (`$target_col`)")) {
+        header("Location: ?db=".$_GET['db']."&table=$target_tbl&msg=Primary key added&type=success"); exit;
+    } else { $msg = "Error: " . $conn->error; $msg_type = "danger"; }
 }
 
 if (isset($_POST['run_sql'])) {
@@ -690,7 +763,8 @@ function build_url($page, $limit, $search) {
                                 <a class="nav-link py-1 px-3" href="#" id="btn-view-struct" onclick="toggleView('struct'); return false;"><i class="fas fa-columns me-1"></i> Structure</a>
                             </li>
                             <li class="nav-item ms-2">
-                                <button class="btn btn-sm btn-success py-1 px-3" data-bs-toggle="modal" data-bs-target="#insertModal"><i class="fas fa-plus me-1"></i> Insert Data</button>
+                                <button class="btn btn-sm btn-success py-1 px-3 d-none" id="btn-add-column" onclick="addColumn()"><i class="fas fa-plus me-1"></i> Add Column</button>
+                                <button class="btn btn-sm btn-success py-1 px-3" id="btn-insert-data" data-bs-toggle="modal" data-bs-target="#insertModal"><i class="fas fa-plus me-1"></i> Insert Data</button>
                             </li>
                         </ul>
                         <div class="ms-3">
@@ -710,10 +784,27 @@ function build_url($page, $limit, $search) {
                     </div>
                 </div>
                 
+                <form method="POST" id="batchForm" onsubmit="return confirm('Delete selected rows?')">
+                <input type="hidden" name="db" value="<?php echo $selected_db; ?>">
+                <input type="hidden" name="table" value="<?php echo $selected_table; ?>">
+                <input type="hidden" name="pk_col" value="<?php echo $primary_key; ?>">
+
+                <div class="card-header bg-light border-bottom d-none" id="batch-actions-bar">
+                    <div class="d-flex align-items-center gap-3">
+                        <span class="text-muted small fw-bold"><span id="selected-count">0</span> rows selected</span>
+                        <button type="submit" name="batch_delete" class="btn btn-danger btn-sm px-3" <?php echo !$primary_key ? 'disabled title="No Primary Key"' : ''; ?>>
+                            <i class="fas fa-trash-alt me-1"></i> Delete Selected
+                        </button>
+                    </div>
+                </div>
+
                 <div class="table-responsive flex-grow-1 border-0" id="view-data">
                     <table class="table table-hover table-bordered table-striped mb-0" style="font-size: 0.9rem;">
                         <thead class="table-light">
                             <tr>
+                                <th style="width: 40px;" class="text-center">
+                                    <input type="checkbox" class="form-check-input" id="select-all-rows">
+                                </th>
                                 <th class="action-cell">Actions</th>
                                 <?php foreach($columns as $col): ?>
                                     <th style="min-width: 100px; white-space: nowrap;">
@@ -725,20 +816,17 @@ function build_url($page, $limit, $search) {
                         </thead>
                         <tbody>
                             <?php if(empty($rows)): ?>
-                                <tr><td colspan="<?php echo count($columns) + 1; ?>" class="text-center p-5 text-muted">No data found.</td></tr>
+                                <tr><td colspan="<?php echo count($columns) + 2; ?>" class="text-center p-5 text-muted">No data found.</td></tr>
                             <?php else: ?>
                                 <?php foreach($rows as $row): ?>
                                     <tr>
+                                        <td class="text-center">
+                                            <input type="checkbox" name="selected_ids[]" class="form-check-input row-checkbox" value="<?php echo isset($row[$primary_key]) ? htmlspecialchars($row[$primary_key]) : ''; ?>" <?php echo !$primary_key ? 'disabled' : ''; ?>>
+                                        </td>
                                         <td class="action-cell">
                                             <div class="d-flex gap-1">
-                                                <button class="btn btn-primary btn-action" onclick='editRow(<?php echo json_encode($row); ?>)' title="Edit"><i class="fas fa-edit"></i></button>
-                                                <form method="POST" onsubmit="return confirm('Delete this row?')" class="m-0">
-                                                    <input type="hidden" name="db" value="<?php echo $selected_db; ?>">
-                                                    <input type="hidden" name="table" value="<?php echo $selected_table; ?>">
-                                                    <input type="hidden" name="pk_col" value="<?php echo $primary_key; ?>">
-                                                    <input type="hidden" name="pk_val" value="<?php echo isset($row[$primary_key]) ? htmlspecialchars($row[$primary_key]) : ''; ?>">
-                                                    <button type="submit" name="delete_row" class="btn btn-danger btn-action" <?php echo !$primary_key ? 'disabled title="No Primary Key"' : ''; ?>><i class="fas fa-trash"></i></button>
-                                                </form>
+                                                <button type="button" class="btn btn-primary btn-action" onclick="editRow(<?php echo htmlspecialchars(json_encode($row), ENT_QUOTES, 'UTF-8'); ?>)" title="Edit"><i class="fas fa-edit"></i></button>
+                                                <button type="submit" form="singleDeleteForm_<?php echo $row[$primary_key] ?? rand(); ?>" class="btn btn-danger btn-action" <?php echo !$primary_key ? 'disabled title="No Primary Key"' : ''; ?>><i class="fas fa-trash"></i></button>
                                             </div>
                                         </td>
                                         <?php foreach($row as $val): ?>
@@ -755,6 +843,18 @@ function build_url($page, $limit, $search) {
                         </tbody>
                     </table>
                 </div>
+                </form>
+
+                <!-- Hidden single delete forms to avoid nested form issues -->
+                <?php if(!empty($rows)): foreach($rows as $row): if($primary_key): ?>
+                    <form method="POST" id="singleDeleteForm_<?php echo $row[$primary_key]; ?>" onsubmit="return confirm('Delete this row?')">
+                        <input type="hidden" name="db" value="<?php echo $selected_db; ?>">
+                        <input type="hidden" name="table" value="<?php echo $selected_table; ?>">
+                        <input type="hidden" name="pk_col" value="<?php echo $primary_key; ?>">
+                        <input type="hidden" name="pk_val" value="<?php echo htmlspecialchars($row[$primary_key]); ?>">
+                        <input type="hidden" name="delete_row" value="1">
+                    </form>
+                <?php endif; endforeach; endif; ?>
 
                 <div class="table-responsive flex-grow-1 border-0 d-none" id="view-struct">
                     <table class="table table-hover table-bordered mb-0">
@@ -766,6 +866,7 @@ function build_url($page, $limit, $search) {
                                 <th>Key</th>
                                 <th>Default</th>
                                 <th>Extra</th>
+                                <th class="text-end">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -778,6 +879,15 @@ function build_url($page, $limit, $search) {
                                         <td><?php echo ($st['Key'] == 'PRI') ? '<span class="badge badge-pk">PRIMARY</span>' : $st['Key']; ?></td>
                                         <td><?php echo $st['Default']; ?></td>
                                         <td><?php echo $st['Extra']; ?></td>
+                                        <td class="text-end">
+                                            <div class="d-flex justify-content-end gap-1">
+                                                <button type="button" class="btn btn-outline-primary btn-action" onclick="editColumn(<?php echo htmlspecialchars(json_encode($st), ENT_QUOTES, 'UTF-8'); ?>)" title="Edit Column"><i class="fas fa-edit fa-xs"></i></button>
+                                                <?php if($st['Key'] != 'PRI'): ?>
+                                                    <a href="?action=make_pk&db=<?php echo $selected_db; ?>&table=<?php echo $selected_table; ?>&column=<?php echo $st['Field']; ?>" class="btn btn-outline-warning btn-action" title="Make Primary Key" onclick="return confirm('Add Primary Key to <?php echo $st['Field']; ?>?')"><i class="fas fa-key fa-xs"></i></a>
+                                                <?php endif; ?>
+                                                <a href="?action=drop_column&db=<?php echo $selected_db; ?>&table=<?php echo $selected_table; ?>&column=<?php echo $st['Field']; ?>" class="btn btn-outline-danger btn-action" title="Drop Column" onclick="return confirm('Drop column <?php echo $st['Field']; ?>?')"><i class="fas fa-trash-alt fa-xs"></i></a>
+                                            </div>
+                                        </td>
                                     </tr>
                                 <?php endforeach; ?>
                             <?php endif; ?>
@@ -1023,6 +1133,87 @@ function build_url($page, $limit, $search) {
     </div>
 </div>
 
+<div class="modal fade" id="columnModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="columnModalTitle">Add/Edit Column</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST">
+                <div class="modal-body">
+                    <input type="hidden" name="target_db" value="<?php echo $selected_db; ?>">
+                    <input type="hidden" name="target_table" value="<?php echo $selected_table; ?>">
+                    <input type="hidden" name="col_mode" id="col_mode" value="add">
+                    <input type="hidden" name="old_col_name" id="old_col_name">
+
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold">Column Name</label>
+                            <input type="text" name="col_name" id="col_name" class="form-control form-control-sm" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold">Type</label>
+                            <select name="col_type" id="col_type" class="form-select form-select-sm">
+                                <option value="INT">INT</option>
+                                <option value="VARCHAR">VARCHAR</option>
+                                <option value="TEXT">TEXT</option>
+                                <option value="DATE">DATE</option>
+                                <option value="DATETIME">DATETIME</option>
+                                <option value="DECIMAL">DECIMAL</option>
+                                <option value="TINYINT">TINYINT</option>
+                                <option value="TIMESTAMP">TIMESTAMP</option>
+                                <option value="ENUM">ENUM</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2" id="col_length_div">
+                            <label class="form-label small fw-bold">Length</label>
+                            <input type="text" name="col_length" id="col_length" class="form-control form-control-sm" placeholder="255">
+                        </div>
+                        <div class="col-md-6 d-none" id="enum_values_div">
+                            <label class="form-label small fw-bold">Enum Values</label>
+                            <div id="enum_inputs_container"></div>
+                            <button type="button" class="btn btn-outline-success btn-xs mt-1" onclick="addEnumInput()" style="font-size: 0.7rem; padding: 2px 5px;"><i class="fas fa-plus"></i> Add Value</button>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold">Default</label>
+                            <input type="text" name="col_default" id="col_default" class="form-control form-control-sm" placeholder="NULL or value">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold">Nullable</label>
+                            <select name="col_nullable" id="col_nullable" class="form-select form-select-sm">
+                                <option value="YES">NULL</option>
+                                <option value="NO">NOT NULL</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold">Extra</label>
+                            <select name="col_extra" id="col_extra" class="form-select form-select-sm">
+                                <option value="">None</option>
+                                <option value="AUTO_INCREMENT">AUTO_INCREMENT</option>
+                            </select>
+                        </div>
+                        <div id="div_col_after" class="col-md-12">
+                            <label class="form-label small fw-bold">After Column</label>
+                            <select name="col_after" id="col_after" class="form-select form-select-sm">
+                                <option value="">(At End)</option>
+                                <option value="FIRST">FIRST</option>
+                                <?php foreach($structure as $s): ?>
+                                    <option value="<?php echo $s['Field']; ?>">After <?php echo $s['Field']; ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="submit" name="alter_column_submit" class="btn btn-primary">Apply Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
     const dbSchema = <?php echo $db_schema_json; ?>;
@@ -1109,6 +1300,33 @@ function build_url($page, $limit, $search) {
         }
     }
 
+    function getInputFieldHtml(fieldName, fieldType, value = '', nameAttr = '') {
+        let html = `<label class="form-label small text-muted mb-0 fw-bold">${fieldName}</label>`;
+        
+        if (fieldType.toLowerCase().startsWith('enum')) {
+            let values = [];
+            let match = fieldType.match(/enum\((.*)\)/i);
+            if (match) {
+                values = match[1].split(',').map(v => v.replace(/^'|'$/g, '').replace(/''/g, "'"));
+            }
+            html += `<select name="${nameAttr}" class="form-select form-select-sm">`;
+            html += `<option value="">(NULL)</option>`;
+            values.forEach(v => {
+                let selected = (v === value) ? 'selected' : '';
+                html += `<option value="${v}" ${selected}>${v}</option>`;
+            });
+            html += `</select>`;
+        } else if (fieldType.toLowerCase().includes('text')) {
+            html += `<textarea name="${nameAttr}" class="form-control form-control-sm" rows="1">${value || ''}</textarea>`;
+        } else {
+            let inputType = 'text';
+            if (fieldType.toLowerCase().includes('int') || fieldType.toLowerCase().includes('decimal')) inputType = 'number';
+            if (fieldType.toLowerCase().includes('date')) inputType = 'date';
+            html += `<input type="${inputType}" name="${nameAttr}" class="form-control form-control-sm" value="${value || ''}">`;
+        }
+        return html;
+    }
+
     const primaryKey = "<?php echo $primary_key; ?>";
     function editRow(rowData) {
         const container = document.getElementById('edit-fields-container');
@@ -1118,15 +1336,154 @@ function build_url($page, $limit, $search) {
         for (const [col, val] of Object.entries(rowData)) {
             const div = document.createElement('div');
             div.className = 'col-md-6';
-            div.innerHTML = `
-                <label class="form-label small text-muted mb-0 fw-bold">${col}</label>
-                <textarea name="upd_data[${col}]" class="form-control form-control-sm" rows="1">${val || ''}</textarea>
-            `;
+            
+            // Find column type
+            let colDef = columns.find(c => c.Field === col);
+            let fieldType = colDef ? colDef.Type : 'text';
+            
+            div.innerHTML = getInputFieldHtml(col, fieldType, val, `upd_data[${col}]`);
             container.appendChild(div);
         }
         
         const editModal = new bootstrap.Modal(document.getElementById('editModal'));
         editModal.show();
+    }
+
+    function addColumn() {
+        document.getElementById('columnModalTitle').innerText = 'Add Column to ' + currentTable;
+        document.getElementById('col_mode').value = 'add';
+        document.getElementById('old_col_name').value = '';
+        document.getElementById('col_name').value = '';
+        document.getElementById('col_length').value = '';
+        document.getElementById('col_default').value = '';
+        document.getElementById('col_extra').value = '';
+        document.getElementById('div_col_after').classList.remove('d-none');
+        
+        document.getElementById('col_type').value = 'VARCHAR';
+        toggleEnumSection('VARCHAR');
+
+        const modal = new bootstrap.Modal(document.getElementById('columnModal'));
+        modal.show();
+    }
+
+    function toggleEnumSection(type) {
+        const lengthDiv = document.getElementById('col_length_div');
+        const enumDiv = document.getElementById('enum_values_div');
+        if (type === 'ENUM') {
+            lengthDiv.classList.add('d-none');
+            enumDiv.classList.remove('d-none');
+            if (document.getElementById('enum_inputs_container').children.length === 0) {
+                addEnumInput();
+            }
+        } else {
+            lengthDiv.classList.remove('d-none');
+            enumDiv.classList.add('d-none');
+        }
+    }
+
+    function addEnumInput(val = '') {
+        const container = document.getElementById('enum_inputs_container');
+        const div = document.createElement('div');
+        div.className = 'input-group input-group-sm mb-1';
+        div.innerHTML = `
+            <input type="text" class="form-control enum-val-input" value="${val}" placeholder="Value">
+            <button class="btn btn-outline-danger" type="button" onclick="this.parentElement.remove()"><i class="fas fa-times"></i></button>
+        `;
+        container.appendChild(div);
+    }
+
+    function populateEnumInputs(valStr) {
+        const container = document.getElementById('enum_inputs_container');
+        container.innerHTML = '';
+        
+        // valStr is e.g. 'a','b','c'
+        // Regex to split by comma while respecting quotes
+        let values = valStr.match(/'([^']*)'/g);
+        if (values) {
+            values.forEach(v => {
+                let cleanVal = v.replace(/^'|'$/g, '').replace(/''/g, "'");
+                addEnumInput(cleanVal);
+            });
+        } else if (valStr) {
+            valStr.split(',').forEach(v => addEnumInput(v.trim()));
+        }
+        
+        if (container.children.length === 0) addEnumInput();
+    }
+
+    // Handle Type Change
+    document.getElementById('col_type').addEventListener('change', function() {
+        toggleEnumSection(this.value);
+    });
+
+    // Consolidate ENUM values on submit
+    document.querySelector('#columnModal form').addEventListener('submit', function(e) {
+        const type = document.getElementById('col_type').value;
+        if (type === 'ENUM') {
+            const inputs = document.querySelectorAll('.enum-val-input');
+            let vals = [];
+            inputs.forEach(input => {
+                let v = input.value.trim();
+                if (v !== '') {
+                    // Escape single quotes for SQL: ' becomes ''
+                    vals.push("'" + v.replace(/'/g, "''") + "'");
+                }
+            });
+            document.getElementById('col_length').value = vals.join(',');
+        }
+    });
+
+    function editColumn(st) {
+        document.getElementById('columnModalTitle').innerText = 'Edit Column: ' + st.Field;
+        document.getElementById('col_mode').value = 'modify';
+        document.getElementById('old_col_name').value = st.Field;
+        document.getElementById('col_name').value = st.Field;
+        
+        let typeInfo = st.Type;
+        let typeName = '';
+        let typeLen = '';
+        
+        // Robust Parse: type(length/values) extra_stuff
+        let match = typeInfo.match(/^([a-z]+)(?:\((.*)\))?/i);
+        if (match) {
+            typeName = match[1].toUpperCase();
+            typeLen = match[2] || '';
+        } else {
+            typeName = typeInfo.toUpperCase();
+        }
+
+        // Ensure type exists in dropdown
+        const typeSelect = document.getElementById('col_type');
+        let typeExists = false;
+        for (let i = 0; i < typeSelect.options.length; i++) {
+            if (typeSelect.options[i].value === typeName) {
+                typeExists = true;
+                break;
+            }
+        }
+        
+        if (!typeExists) {
+            let opt = document.createElement('option');
+            opt.value = typeName;
+            opt.text = typeName;
+            typeSelect.add(opt);
+        }
+        
+        typeSelect.value = typeName;
+        document.getElementById('col_length').value = typeLen;
+
+        toggleEnumSection(typeName);
+        if (typeName === 'ENUM') {
+            populateEnumInputs(typeLen);
+        }
+        
+        document.getElementById('col_nullable').value = st.Null;
+        document.getElementById('col_default').value = st.Default || '';
+        document.getElementById('col_extra').value = st.Extra.toUpperCase() === 'AUTO_INCREMENT' ? 'AUTO_INCREMENT' : '';
+        document.getElementById('div_col_after').classList.add('d-none');
+
+        const modal = new bootstrap.Modal(document.getElementById('columnModal'));
+        modal.show();
     }
 
     const structureSql = <?php echo json_encode($create_table_sql); ?>;
@@ -1135,6 +1492,8 @@ function build_url($page, $limit, $search) {
         var structDiv = document.getElementById('view-struct');
         var btnData = document.getElementById('btn-view-data');
         var btnStruct = document.getElementById('btn-view-struct');
+        var btnAddCol = document.getElementById('btn-add-column');
+        var btnInsData = document.getElementById('btn-insert-data');
         var sqlTextarea = document.querySelector('textarea[name="sql_query"]');
 
         if(view === 'data') {
@@ -1142,11 +1501,15 @@ function build_url($page, $limit, $search) {
             structDiv.classList.add('d-none');
             btnData.classList.add('active');
             btnStruct.classList.remove('active');
+            btnAddCol.classList.add('d-none');
+            btnInsData.classList.remove('d-none');
         } else {
             dataDiv.classList.add('d-none');
             structDiv.classList.remove('d-none');
             btnData.classList.remove('active');
-            btnStruct.classList.add('active');
+            btnStruct.classList.active('active');
+            btnAddCol.classList.remove('d-none');
+            btnInsData.classList.add('d-none');
             if(sqlTextarea) sqlTextarea.value = structureSql;
         }
     }
@@ -1163,17 +1526,9 @@ function build_url($page, $limit, $search) {
         columns.forEach(col => {
             const fieldName = col.Field;
             const fieldType = col.Type;
-            let inputType = 'text';
-            if(fieldType.includes('int') || fieldType.includes('decimal')) inputType = 'number';
-            if(fieldType.includes('date')) inputType = 'date';
-            if(fieldType.includes('text')) inputType = 'textarea';
 
-            html += `<div class="col-md-3 mb-2"><label class="form-label small text-muted mb-0 fw-bold">${fieldName}</label>`;
-            if(inputType === 'textarea') {
-                html += `<textarea name="ins_data[${rowCount}][${fieldName}]" class="form-control form-control-sm" rows="1"></textarea>`;
-            } else {
-                html += `<input type="${inputType}" name="ins_data[${rowCount}][${fieldName}]" class="form-control form-control-sm">`;
-            }
+            html += `<div class="col-md-3 mb-2">`;
+            html += getInputFieldHtml(fieldName, fieldType, '', `ins_data[${rowCount}][${fieldName}]`);
             html += `</div>`;
         });
         html += '</div></div>';
@@ -1183,6 +1538,34 @@ function build_url($page, $limit, $search) {
     }
     document.addEventListener('DOMContentLoaded', function() { if(document.getElementById('insert-rows-container')) addInsertRow(); });
     <?php endif; ?>
+
+    const selectAllRows = document.getElementById('select-all-rows');
+    const rowCheckboxes = document.querySelectorAll('.row-checkbox');
+    const batchActionsBar = document.getElementById('batch-actions-bar');
+    const selectedCountSpan = document.getElementById('selected-count');
+
+    if(selectAllRows) {
+        selectAllRows.addEventListener('change', function() {
+            rowCheckboxes.forEach(cb => {
+                if(!cb.disabled) cb.checked = this.checked;
+            });
+            updateBatchBar();
+        });
+    }
+
+    rowCheckboxes.forEach(cb => {
+        cb.addEventListener('change', updateBatchBar);
+    });
+
+    function updateBatchBar() {
+        const selectedCount = document.querySelectorAll('.row-checkbox:checked').length;
+        if(selectedCount > 0) {
+            batchActionsBar.classList.remove('d-none');
+            selectedCountSpan.textContent = selectedCount;
+        } else {
+            batchActionsBar.classList.add('d-none');
+        }
+    }
 
     const baseTableSelect = document.getElementById('jb_base_table');
     if(baseTableSelect) {
@@ -1291,4 +1674,4 @@ function build_url($page, $limit, $search) {
     }
 </script>
 </body>
-</html>
+</html>', file_path: 'backend_api/db/db_ed_new.php')

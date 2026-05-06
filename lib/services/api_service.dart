@@ -183,6 +183,26 @@ class ApiService {
     return false;
   }
 
+  Future<List<Customer>> getCustomers(String mobileNo) async {
+    // FORCE CLEAN: Remove +, country code, and leading zeros
+    String cleanNo = mobileNo.replaceAll(RegExp(r'\D'), '');
+    if (cleanNo.startsWith('94')) cleanNo = cleanNo.substring(2);
+    if (cleanNo.startsWith('0')) cleanNo = cleanNo.substring(1);
+
+    try {
+      final response = await http.get(Uri.parse('$baseUrl/get_customers.php?mobile_no=$cleanNo'));
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data['success'] == true) {
+          return (data['data'] as List).map((i) => Customer.fromJson(i)).toList();
+        }
+      }
+    } catch (e) {
+      print('DEBUG: [getCustomers] Error: $e');
+    }
+    return [];
+  }
+
   Future<Map<String, dynamic>> requestPayout(String mobileNo, double amount) async {
     try {
       final response = await http.post(

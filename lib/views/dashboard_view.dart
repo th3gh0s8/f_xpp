@@ -3,6 +3,7 @@ import '../models/partner.dart';
 import '../services/api_service.dart';
 import 'level_benefits_page.dart';
 import 'invoice_details_page.dart';
+import 'my_customers_page.dart';
 
 class DashboardView extends StatefulWidget {
   final String phoneNumber;
@@ -139,11 +140,17 @@ class _DashboardViewState extends State<DashboardView> {
           _getLevelColors(apiLevel),
           Colors.white,
         ),
-        _buildStatCard(
-          'ACTIVE CLIENTS',
-          '$totalCustomers',
-          [const Color(0xFF212121), Colors.black],
-          Colors.white,
+        GestureDetector(
+          onTap: () => Navigator.push(
+            context, 
+            MaterialPageRoute(builder: (context) => MyCustomersPage(phoneNumber: widget.phoneNumber))
+          ),
+          child: _buildStatCard(
+            'ACTIVE CLIENTS',
+            '$totalCustomers',
+            [const Color(0xFF212121), Colors.black],
+            Colors.white,
+          ),
         ),
       ],
     );

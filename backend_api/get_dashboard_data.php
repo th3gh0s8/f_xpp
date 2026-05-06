@@ -4,7 +4,11 @@ header('Cache-Control: no-cache, no-store, must-revalidate');
 header('Pragma: no-cache');
 header('Expires: 0');
 
-require_once 'db_config.php';
+if (file_exists('db/db_config.php')) {
+    require_once 'db/db_config.php';
+} else {
+    require_once 'db_config.php';
+}
 
 $mobile_no = $_GET['mobile_no'] ?? '';
 
@@ -38,7 +42,8 @@ $total_invoices = (int)($invoice_stats['total_invoices'] ?? 0);
 $stmtPaid = $conn->prepare("SELECT SUM(amount) as total_paid FROM payout_request WHERE partner_id = ? AND status = 'completed'");
 $stmtPaid->bind_param("i", $partner_id);
 $stmtPaid->execute();
-$total_paid = (float)($stmtPaid->get_result()->fetch_assoc()['total_paid'] ?? 0);
+$paid_stats = $stmtPaid->get_result()->fetch_assoc();
+$total_paid = (float)($paid_stats['total_paid'] ?? 0);
 
 // 4. Calculate PENDING/PROCESSING amounts
 $stmtPending = $conn->prepare("SELECT SUM(amount) as pending_payouts FROM payout_request WHERE partner_id = ? AND status IN ('pending', 'processing')");
@@ -52,7 +57,6 @@ $available_balance = $gross_balance - $total_paid;
 if ($available_balance < 0) $available_balance = 0;
 
 // 6. Get Registered Customers - ONLY ACTIVE ONES
-// As requested: Only show clients who have status 'Active'
 $stmtC = $conn->prepare("SELECT COUNT(ID) as total_customers FROM new_clients WHERE (partnerTb = ? OR partnerTb = ?) AND status = 'Active'");
 $stmtC->bind_param("is", $partner_id, $mobile_no);
 $stmtC->execute();

@@ -1,6 +1,6 @@
 <?php
 header('Content-Type: application/json');
-require_once 'db_config.php';
+require_once 'db/db_config.php';
 
 $mobile_no = $_POST['mobile_no'] ?? '';
 $amount = (float)($_POST['amount'] ?? 0);
