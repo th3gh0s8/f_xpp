@@ -1,7 +1,7 @@
 <?php
 session_start();
 
-if (isset($_GET['code']) && $_GET['code'] === '2000') {
+if (isset($_GET['code']) && $_GET['code'] === '12236') {
     $_SESSION['authenticated'] = true;
 }
 
