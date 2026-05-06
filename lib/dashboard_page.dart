@@ -16,10 +16,18 @@ class DashboardPage extends StatefulWidget {
 class _DashboardPageState extends State<DashboardPage> {
   int _selectedIndex = 0;
   Key _dashboardKey = UniqueKey();
+  Key _profileKey = UniqueKey();
 
   void _onItemTapped(int index) {
     setState(() {
       _selectedIndex = index;
+    });
+  }
+
+  void _refreshAll() {
+    setState(() {
+      _dashboardKey = UniqueKey();
+      _profileKey = UniqueKey();
     });
   }
 
@@ -33,7 +41,7 @@ class _DashboardPageState extends State<DashboardPage> {
             DashboardView(key: _dashboardKey, phoneNumber: widget.phoneNumber),
             InvoicesView(phoneNumber: widget.phoneNumber),
             PayoutsView(phoneNumber: widget.phoneNumber),
-            ProfileView(phoneNumber: widget.phoneNumber),
+            ProfileView(key: _profileKey, phoneNumber: widget.phoneNumber, onProfileUpdated: _refreshAll),
           ],
         ),
       ),
@@ -45,7 +53,6 @@ class _DashboardPageState extends State<DashboardPage> {
           );
           
           if (result == true) {
-            // Force recreation of DashboardView by changing its key
             setState(() {
               _selectedIndex = 0;
               _dashboardKey = UniqueKey();

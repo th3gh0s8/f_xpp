@@ -42,7 +42,8 @@ try {
     
     // We bind as strings (s) because we cast the DB column to CHAR in the query.
     $param1 = (string)($partner_id > 0 ? $partner_id : $mobile_no);
-    $stmtC->bind_param("ss", $param1, (string)$mobile_no);
+    $param2 = (string)$mobile_no;
+    $stmtC->bind_param("ss", $param1, $param2);
     
     if (!$stmtC->execute()) {
         throw new Exception("Query failed: " . $stmtC->error);

@@ -7,7 +7,8 @@ import 'edit_profile_page.dart';
 
 class ProfileView extends StatefulWidget {
   final String phoneNumber;
-  const ProfileView({super.key, required this.phoneNumber});
+  final VoidCallback? onProfileUpdated;
+  const ProfileView({super.key, required this.phoneNumber, this.onProfileUpdated});
 
   @override
   State<ProfileView> createState() => _ProfileViewState();
@@ -71,7 +72,10 @@ class _ProfileViewState extends State<ProfileView> {
               context,
               MaterialPageRoute(builder: (context) => EditProfilePage(partner: _partner!)),
             );
-            if (updated == true) _fetchPartnerData();
+            if (updated == true) {
+              _fetchPartnerData();
+              if (widget.onProfileUpdated != null) widget.onProfileUpdated!();
+            }
           }),
           const SizedBox(height: 12),
           _buildActionButton('LOGOUT', Icons.power_settings_new, () async {
