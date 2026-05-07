@@ -1,83 +1,67 @@
 <?php
-// UNIFIED PRODUCTION OTP GENERATOR - ROBUST PATHS
+// FINAL PRODUCTION STABILIZER - ROBUST OTP RE-GENERATION
 header('Content-Type: application/json');
 header('Cache-Control: no-cache, no-store, must-revalidate');
+header('Pragma: no-cache');
+header('Expires: 0');
 
-// 1. Precise path discovery for the moved db folder
 if (file_exists('db/db_config.php')) {
     require_once 'db/db_config.php';
-} elseif (file_exists('db_config.php')) {
-    require_once 'db_config.php';
 } else {
-    die(json_encode(["success" => false, "message" => "CRITICAL: Database config not found."]));
+    require_once 'db_config.php';
 }
 
-$mobile_no = $_GET['mobile_no'] ?? '';
-if (empty($mobile_no)) {
-    die(json_encode(["success" => false, "message" => "Mobile number required"]));
+$raw_mobile = $_GET['mobile_no'] ?? '';
+if (empty($raw_mobile)) {
+    die(json_encode(["success" => false, "message" => "Mobile missing"]));
 }
+
+// 1. Normalize for search
+$clean_no = preg_replace('/\D/', '', $raw_mobile);
+$no_zero = ltrim($clean_no, '0');
+$with_zero = '0' . $no_zero;
 
 try {
-    // 2. Find Partner (checking variations for safety)
-    $stmt = $conn->prepare(\"SELECT * FROM partners WHERE mobile_no = ? OR mobile_no = ?\");
-    if (!$stmt) {
-        die(json_encode([\"success\" => false, \"message\" => \"Prepare search failed: \" . $conn->error]));
-    }
-    $with_zero = '0' . ltrim($mobile_no, '0');
-    $no_zero = ltrim($mobile_no, '0');
-    
-    $stmt->bind_param(\"ss\", $no_zero, $with_zero);
+    // 2. Find Partner
+    $stmt = $conn->prepare("SELECT * FROM partners WHERE mobile_no = ? OR mobile_no = ? LIMIT 1");
+    $stmt->bind_param("ss", $no_zero, $with_zero);
     $stmt->execute();
-    $result = $stmt->get_result();
-    $partner = $result->fetch_assoc();
-    $stmt->close();
+    $partner = $stmt->get_result()->fetch_assoc();
 
     if ($partner) {
+        $partner_id = $partner['ID'];
         $otp = rand(1111, 9999);
         $now = date('Y-m-d H:i:s');
-        $matched_mobile = $partner['mobile_no']; // Use the format actually stored in DB
 
-        // 3. Clear old codes for this mobile number (checking variations)
-        $stmt_clear = $conn->prepare(\"UPDATE web_codes SET status = 1 WHERE u_Id = ? OR u_Id = ? OR u_Id = ?\");
-        if (!$stmt_clear) {
-            die(json_encode([\"success\" => false, \"message\" => \"Prepare clear failed: \" . $conn->error]));
-        }
-        $stmt_clear->bind_param(\"sss\", $no_zero, $with_zero, $matched_mobile);
-        $stmt_clear->execute();
-        $stmt_clear->close();
+        // 3. LOG THE ACTIVITY (Act Type 2 = Login Request)
+        $conn->query("INSERT INTO login_activity (u_id, act_type, time, status) VALUES ($partner_id, 2, '$now', 0)");
 
-        // 4. Save new OTP
-        $stmt_otp = $conn->prepare(\"INSERT INTO web_codes (u_Id, otp_code, time, status) VALUES (?, ?, ?, 0)\");
-        if (!$stmt_otp) {
-            die(json_encode([\"success\" => false, \"message\" => \"Prepare insert failed: \" . $conn->error]));
-        }
-        $stmt_otp->bind_param(\"sis\", $matched_mobile, $otp, $now);
+        // 4. CRITICAL FIX: FORCE EXPIRE ALL OLD CODES FOR THIS USER
+        // We use a direct query to ensure every single active code for this ID is invalidated
+        $conn->query("UPDATE web_codes SET status = 1 WHERE u_Id = '$partner_id' OR u_Id = '$no_zero' OR u_Id = '$with_zero'");
 
-        if ($stmt_otp->execute()) {
+        // 5. INSERT NEW ACTIVE OTP
+        $sql = "INSERT INTO web_codes (u_Id, otp_code, time, status) VALUES ('$partner_id', $otp, '$now', 0)";
+
+        if ($conn->query($sql)) {
             echo json_encode([
                 "success" => true,
                 "data" => $partner,
                 "debug_otp" => $otp,
-                "db_status" => "OTP Saved Successfully",
-                "message" => "OTP generated and saved successfully for $matched_mobile"
+                "message" => "FRESH OTP generated and logged."
             ]);
         } else {
             echo json_encode([
                 "success" => false,
-                "db_status" => "OTP Save Failed: " . $stmt_otp->error,
-                "message" => "Database rejected OTP save: " . $stmt_otp->error
+                "message" => "Database rejected OTP save",
+                "error" => $conn->error
             ]);
         }
-        $stmt_otp->close();
     } else {
-        echo json_encode([
-            \"success\" => false, 
-            \"message\" => \"Mobile number not found in database: $mobile_no\",
-            \"debug\" => [\"tried_no_zero\" => $no_zero, \"tried_with_zero\" => $with_zero]
-        ]);
+        echo json_encode(["success" => false, "message" => "Partner not found for $no_zero"]);
     }
 } catch (Exception $e) {
-    echo json_encode(["success" => false, "message" => "System Error: " . $e->getMessage()]);
+    echo json_encode(["success" => false, "message" => "Server Error: " . $e->getMessage()]);
 }
 
 $conn->close();

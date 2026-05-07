@@ -30,7 +30,7 @@ class _ProfileViewState extends State<ProfileView> {
     setState(() => _isLoading = true);
     try {
       final mobileNo = widget.phoneNumber;
-      final partner = await _apiService.getPartner(mobileNo);
+      final partner = await _apiService.getProfile(mobileNo);
       if (mounted) {
         setState(() {
           _partner = partner;

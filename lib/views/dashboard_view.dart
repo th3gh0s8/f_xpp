@@ -31,7 +31,7 @@ class _DashboardViewState extends State<DashboardView> {
     try {
       final data = await _apiService.getDashboardData(mobileNo);
       final invoices = await _apiService.getInvoices(mobileNo);
-      final partner = await _apiService.getPartner(mobileNo);
+      final partner = await _apiService.getProfile(mobileNo);
       if (mounted) {
         setState(() {
           _dashboardData = data;

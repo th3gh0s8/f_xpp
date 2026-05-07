@@ -24,12 +24,19 @@ class _MyCustomersPageState extends State<MyCustomersPage> {
   }
 
   Future<void> _fetchCustomers() async {
+    if (!mounted) return;
     setState(() => _isLoading = true);
-    final customers = await _apiService.getCustomers(widget.phoneNumber);
-    setState(() {
-      _customers = customers;
-      _isLoading = false;
-    });
+    try {
+      final customers = await _apiService.getCustomers(widget.phoneNumber);
+      if (mounted) {
+        setState(() {
+          _customers = customers;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   @override

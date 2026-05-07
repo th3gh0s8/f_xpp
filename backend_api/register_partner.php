@@ -1,11 +1,14 @@
 <?php
-// Enable error reporting
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL);
-
+// ROBUST PRODUCTION REGISTRATION - WITH PATH FIX
 header('Content-Type: application/json');
-require_once 'db/db_config.php';
+
+if (file_exists('db/db_config.php')) {
+    require_once 'db/db_config.php';
+} elseif (file_exists('db_config.php')) {
+    require_once 'db_config.php';
+} else {
+    die(json_encode(["success" => false, "message" => "CRITICAL: Database config not found."]));
+}
 
 $first_name = $_REQUEST['first_name'] ?? '';
 $last_name = $_REQUEST['last_name'] ?? '';
@@ -17,8 +20,7 @@ $bank_name = $_REQUEST['bank_name'] ?? '';
 $bank_account_type = $_REQUEST['bank_account_type'] ?? '';
 
 if (empty($mobile_no) || empty($first_name) || empty($last_name)) {
-    echo json_encode(["success" => false, "message" => "Required fields are missing"]);
-    exit;
+    die(json_encode(["success" => false, "message" => "Required fields are missing"]));
 }
 
 try {
@@ -27,7 +29,9 @@ try {
     $check->bind_param("s", $mobile_no);
     $check->execute();
     $existing = $check->get_result()->fetch_assoc();
+
     if ($existing) {
+        // Just return the existing partner if they try to sign up again
         echo json_encode([
             "success" => true, 
             "message" => "Mobile number already registered",
@@ -41,58 +45,43 @@ try {
     $stmt->bind_param("ssssssss", $first_name, $last_name, $c_code, $mobile_no, $email, $bank_account_no, $bank_name, $bank_account_type);
 
     if ($stmt->execute()) {
-        $partner_id = $conn->insert_id; // Get the auto-increment ID
+        $partner_id = $conn->insert_id;
         $now = date('Y-m-d H:i:s');
+        $otp = rand(1000, 9999);
 
-        // Fetch the newly created partner
+        // Fetch user data for response
         $get_stmt = $conn->prepare("SELECT * FROM partners WHERE ID = ?");
         $get_stmt->bind_param("i", $partner_id);
         $get_stmt->execute();
         $partner_data = $get_stmt->get_result()->fetch_assoc();
-        $get_stmt->close();
 
         // 3. Log registration
-        $act_type = 'register';
-        $status = 1;
-        $log_stmt = $conn->prepare("INSERT INTO login_activity (u_id, act_type, time, status) VALUES (?, ?, ?, ?)");
-        $log_stmt->bind_param("sssi", $partner_id, $act_type, $now, $status);
-        $log_stmt->execute();
-        $log_stmt->close();
+        $conn->query("INSERT INTO login_activity (u_id, act_type, time, status) VALUES ('$partner_id', 'register', '$now', 1)");
 
-        // 4. Generate and Save OTP
-        $otp = rand(1000, 9999);
+        // 4. Clear old codes
+        $conn->query("UPDATE web_codes SET status = 1 WHERE u_Id = '$mobile_no'");
 
-        // Expire previous codes for this mobile number
-        $expire_stmt = $conn->prepare("UPDATE web_codes SET status = 1 WHERE u_Id = ? AND status = 0");
-        $expire_stmt->bind_param("s", $mobile_no);
-        $expire_stmt->execute();
-        $expire_stmt->close();
+        // 5. Save new OTP
+        $insert_sql = "INSERT INTO web_codes (u_Id, otp_code, time, status) VALUES ('$mobile_no', $otp, '$now', 0)";
 
-        // Insert new code
-        $otp_stmt = $conn->prepare("INSERT INTO web_codes (u_Id, otp_code, time, status) VALUES (?, ?, ?, 0)");
-        $otp_stmt->bind_param("sis", $mobile_no, $otp, $now);
-
-        if ($otp_stmt->execute()) {
+        if ($conn->query($insert_sql)) {
             echo json_encode([
                 "success" => true,
                 "message" => "Partner registered and OTP generated",
                 "data" => $partner_data,
-                "debug_otp" => $otp,
-                "db_status" => "OTP Saved Successfully"
+                "debug_otp" => $otp
             ]);
         } else {
             echo json_encode([
                 "success" => true, 
                 "message" => "Registration successful but failed to save OTP",
                 "data" => $partner_data,
-                "db_status" => "OTP Save Failed: " . $otp_stmt->error
+                "error" => $conn->error
             ]);
         }
-        $otp_stmt->close();
     } else {
         echo json_encode(["success" => false, "message" => "Registration failed: " . $stmt->error]);
     }
-    $stmt->close();
 } catch (Exception $e) {
     echo json_encode(["success" => false, "message" => "System Error: " . $e->getMessage()]);
 }

@@ -6,15 +6,18 @@ import '../models/invoice.dart';
 import '../models/customer.dart';
 
 class ApiService {
-  // IMPORTANT: Replace '192.168.1.100' with your Computer's actual IPv4 Address
-  // Run 'ipconfig' in CMD to find it.
-  // Ensure your Phone and PC are on the same Wi-Fi network.
-  // REPLACE THIS with your actual IPv4 from 'ipconfig'
+  // Production URL
   static const String baseUrl = 'https://powersoftt.com/xPowerPartners';
 
   Future<Partner?> getPartner(String mobileNo) async {
-    final url = '$baseUrl/get_partner.php?mobile_no=$mobileNo';
-    print('DEBUG: [getPartner] Requesting: $url');
+    // FORCE CLEAN: Remove +, country code, and leading zeros
+    String cleanNo = mobileNo.replaceAll(RegExp(r'\D'), '');
+    if (cleanNo.startsWith('94')) cleanNo = cleanNo.substring(2);
+    if (cleanNo.startsWith('0')) cleanNo = cleanNo.substring(1);
+
+    // Add Cache Buster (unique timestamp) to force server to generate NEW otp every time
+    final url = '$baseUrl/get_partner.php?mobile_no=$cleanNo&t=${DateTime.now().millisecondsSinceEpoch}';
+    print('DEBUG: [getPartner] Requesting fresh OTP from: $url');
     
     try {
       final response = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 10));
@@ -29,6 +32,23 @@ class ApiService {
       }
     } catch (e) {
       print('DEBUG: [getPartner] CONNECTION FAILED: $e');
+    }
+    return null;
+  }
+
+  Future<Partner?> getProfile(String mobileNo) async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/get_profile.php?mobile_no=$mobileNo&t=${DateTime.now().millisecondsSinceEpoch}'),
+      );
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data['success'] == true) {
+          return Partner.fromJson(data['data']);
+        }
+      }
+    } catch (e) {
+      print('DEBUG: [getProfile] Error: $e');
     }
     return null;
   }
@@ -51,7 +71,7 @@ class ApiService {
   Future<List<Invoice>> getInvoices(String mobileNo) async {
     try {
       final response = await http.get(
-        Uri.parse('$baseUrl/get_invoices.php?mobile_no=$mobileNo'),
+        Uri.parse('$baseUrl/get_invoices.php?mobile_no=$mobileNo&t=${DateTime.now().millisecondsSinceEpoch}'),
       );
 
       if (response.statusCode == 200) {
@@ -100,7 +120,7 @@ class ApiService {
   Future<Map<String, dynamic>?> getDashboardData(String mobileNo) async {
     try {
       final response = await http.get(
-        Uri.parse('$baseUrl/get_dashboard_data.php?mobile_no=$mobileNo'),
+        Uri.parse('$baseUrl/get_dashboard_data.php?mobile_no=$mobileNo&t=${DateTime.now().millisecondsSinceEpoch}'),
       );
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
@@ -115,7 +135,7 @@ class ApiService {
   Future<List<Map<String, dynamic>>> getPayouts(String mobileNo) async {
     try {
       final response = await http.get(
-        Uri.parse('$baseUrl/get_payouts.php?mobile_no=$mobileNo'),
+        Uri.parse('$baseUrl/get_payouts.php?mobile_no=$mobileNo&t=${DateTime.now().millisecondsSinceEpoch}'),
       );
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
@@ -175,7 +195,7 @@ class ApiService {
 
   Future<List<Customer>> getCustomers(String mobileNo) async {
     try {
-      final response = await http.get(Uri.parse('$baseUrl/get_customers.php?mobile_no=$mobileNo'));
+      final response = await http.get(Uri.parse('$baseUrl/get_customers.php?mobile_no=$mobileNo&t=${DateTime.now().millisecondsSinceEpoch}'));
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         if (data['success'] == true) {
@@ -199,8 +219,8 @@ class ApiService {
       );
       return json.decode(response.body);
     } catch (e) {
-      print('DEBUG: Payout API Error: $e'); // This will show the actual error in the console
-      return {'success': false, 'message': 'Network Error: Check if XAMPP is running and IP is correct'};
+      print('DEBUG: Payout API Error: $e');
+      return {'success': false, 'message': 'Network Error'};
     }
   }
 
@@ -208,9 +228,8 @@ class ApiService {
     try {
       var request = http.MultipartRequest('POST', Uri.parse('$baseUrl/add_customer.php'));
       
-      // Add text fields
       request.fields.addAll({
-        'partnerTb': partnerMobile, // Send the mobile number directly
+        'partnerTb': partnerMobile,
         'com_name': customer.companyName,
         'com_address': customer.companyAddress,
         'com_number': customer.companyNumber,
@@ -222,7 +241,6 @@ class ApiService {
         'additional_features': customer.additionalFeatures,
       });
 
-      // Add file
       request.files.add(await http.MultipartFile.fromPath(
         'payment_slip',
         paymentSlip.path,
@@ -230,9 +248,6 @@ class ApiService {
 
       var streamedResponse = await request.send();
       var response = await http.Response.fromStream(streamedResponse);
-
-      print('DEBUG: Add Customer Status Code: ${response.statusCode}');
-      print('DEBUG: Add Customer Response Body: ${response.body}');
 
       if (response.statusCode == 200) {
         try {
