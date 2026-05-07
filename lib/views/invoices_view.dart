@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/invoice.dart';
 import '../services/api_service.dart';
 import 'invoice_details_page.dart';
+import '../widgets/system_overlay_wrapper.dart';
 
 class InvoicesView extends StatefulWidget {
   final String phoneNumber;
@@ -25,37 +26,46 @@ class _InvoicesViewState extends State<InvoicesView> {
   Future<void> _fetchInvoices() async {
     final mobileNo = widget.phoneNumber;
     final invoices = await _apiService.getInvoices(mobileNo);
-    setState(() {
-      _invoices = invoices;
-      _isLoading = false;
-    });
+    if (mounted) {
+      setState(() {
+        _invoices = invoices;
+        _isLoading = false;
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) return const Center(child: CircularProgressIndicator(color: Colors.black));
+    if (_isLoading) return const SystemOverlayWrapper(child: Scaffold(body: Center(child: CircularProgressIndicator(color: Colors.black))));
 
-    return RefreshIndicator(
-      onRefresh: _fetchInvoices,
-      color: Colors.black,
-      child: SingleChildScrollView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'ALL INVOICES',
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, letterSpacing: 2),
+    return SystemOverlayWrapper(
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF8F8F8),
+        appBar: AppBar(
+          title: const Text('ALL INVOICES', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 14, letterSpacing: 1.5)),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_ios_new, size: 20),
+            onPressed: () => Navigator.pop(context),
+          ),
+        ),
+        body: RefreshIndicator(
+          onRefresh: _fetchInvoices,
+          color: Colors.black,
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('TRACK YOUR SALES AND COMMISSIONS', style: TextStyle(fontSize: 12, color: Colors.black38, fontWeight: FontWeight.w900, letterSpacing: 1.5)),
+                const SizedBox(height: 24),
+                if (_invoices.isEmpty)
+                  const Center(child: Text('NO INVOICES FOUND'))
+                else
+                  _buildInvoicesList(),
+              ],
             ),
-            const SizedBox(height: 8),
-            const Text('TRACK YOUR SALES AND COMMISSIONS'),
-            const SizedBox(height: 24),
-            if (_invoices.isEmpty)
-              const Center(child: Text('NO INVOICES FOUND'))
-            else
-              _buildInvoicesList(),
-          ],
+          ),
         ),
       ),
     );

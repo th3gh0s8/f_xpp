@@ -13,12 +13,7 @@ class ApiService {
   static const String baseUrl = 'https://powersoftt.com/xPowerPartners';
 
   Future<Partner?> getPartner(String mobileNo) async {
-    // FORCE CLEAN: Remove +, country code, and leading zeros
-    String cleanNo = mobileNo.replaceAll(RegExp(r'\D'), '');
-    if (cleanNo.startsWith('94')) cleanNo = cleanNo.substring(2);
-    if (cleanNo.startsWith('0')) cleanNo = cleanNo.substring(1);
-
-    final url = '$baseUrl/get_partner.php?mobile_no=$cleanNo';
+    final url = '$baseUrl/get_partner.php?mobile_no=$mobileNo';
     print('DEBUG: [getPartner] Requesting: $url');
     
     try {
@@ -40,20 +35,15 @@ class ApiService {
 
   Future<bool> verifyOTP(String mobileNo, String otpCode) async {
     try {
-      final response = await http.post(
-        Uri.parse('$baseUrl/verify_otp.php'),
-        body: {
-          'mobile_no': mobileNo,
-          'otp_code': otpCode,
-        },
-      );
-
+      final body = {'mobile_no': mobileNo, 'otp_code': otpCode};
+      final response = await http.post(Uri.parse('$baseUrl/verify_otp.php'), body: body);
+      print('DEBUG: [verifyOTP] Body: $body, Status: ${response.statusCode}, Response: ${response.body}');
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         return data['success'] == true;
       }
     } catch (e) {
-      print('API Error: $e');
+      print('DEBUG: [verifyOTP] Error: $e');
     }
     return false;
   }
@@ -184,13 +174,8 @@ class ApiService {
   }
 
   Future<List<Customer>> getCustomers(String mobileNo) async {
-    // FORCE CLEAN: Remove +, country code, and leading zeros
-    String cleanNo = mobileNo.replaceAll(RegExp(r'\D'), '');
-    if (cleanNo.startsWith('94')) cleanNo = cleanNo.substring(2);
-    if (cleanNo.startsWith('0')) cleanNo = cleanNo.substring(1);
-
     try {
-      final response = await http.get(Uri.parse('$baseUrl/get_customers.php?mobile_no=$cleanNo'));
+      final response = await http.get(Uri.parse('$baseUrl/get_customers.php?mobile_no=$mobileNo'));
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         if (data['success'] == true) {

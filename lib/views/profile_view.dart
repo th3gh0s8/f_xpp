@@ -26,16 +26,19 @@ class _ProfileViewState extends State<ProfileView> {
   }
 
   Future<void> _fetchPartnerData() async {
+    if (!mounted) return;
     setState(() => _isLoading = true);
     try {
       final mobileNo = widget.phoneNumber;
       final partner = await _apiService.getPartner(mobileNo);
-      setState(() {
-        _partner = partner;
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _partner = partner;
+          _isLoading = false;
+        });
+      }
     } catch (e) {
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -68,12 +71,17 @@ class _ProfileViewState extends State<ProfileView> {
           ),
           const SizedBox(height: 40),
           _buildActionButton('EDIT PROFILE', Icons.edit_note, () async {
-            final updated = await Navigator.push(
+            final result = await Navigator.push(
               context,
               MaterialPageRoute(builder: (context) => EditProfilePage(partner: _partner!)),
             );
-            if (updated == true) {
-              _fetchPartnerData();
+            
+            print("DEBUG: Edit Profile result: $result");
+            
+            if (result is Partner) {
+              setState(() {
+                _partner = result;
+              });
               if (widget.onProfileUpdated != null) widget.onProfileUpdated!();
             }
           }),

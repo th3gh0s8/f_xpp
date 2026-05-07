@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../models/customer.dart';
 import '../services/api_service.dart';
+import '../widgets/system_overlay_wrapper.dart';
 
 class MyCustomersPage extends StatefulWidget {
   final String phoneNumber;
@@ -32,23 +34,29 @@ class _MyCustomersPageState extends State<MyCustomersPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        title: const Text('MY CUSTOMERS', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 14, letterSpacing: 1.5)),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, size: 20),
-          onPressed: () => Navigator.pop(context),
+    return SystemOverlayWrapper(
+      child: Scaffold(
+        backgroundColor: Colors.white,
+        appBar: AppBar(
+          systemOverlayStyle: SystemUiOverlayStyle(
+            statusBarColor: Colors.transparent,
+            statusBarIconBrightness: Brightness.dark,
+            statusBarBrightness: Brightness.light,
+          ),
+          title: const Text('MY CUSTOMERS', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 14, letterSpacing: 1.5)),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_ios_new, size: 20),
+            onPressed: () => Navigator.pop(context),
+          ),
+        ),        body: RefreshIndicator(
+          onRefresh: _fetchCustomers,
+          color: Colors.black,
+          child: _isLoading 
+            ? const Center(child: CircularProgressIndicator(color: Colors.black))
+            : _customers.isEmpty 
+              ? _buildEmptyState()
+              : _buildCustomerList(),
         ),
-      ),
-      body: RefreshIndicator(
-        onRefresh: _fetchCustomers,
-        color: Colors.black,
-        child: _isLoading 
-          ? const Center(child: CircularProgressIndicator(color: Colors.black))
-          : _customers.isEmpty 
-            ? _buildEmptyState()
-            : _buildCustomerList(),
       ),
     );
   }

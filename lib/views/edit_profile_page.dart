@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../models/partner.dart';
 import '../services/api_service.dart';
 
@@ -55,7 +56,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
       setState(() => _isSaving = false);
       if (success) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('PROFILE UPDATED SUCCESSFULLY')));
-        Navigator.pop(context, true);
+        Navigator.pop(context, updatedPartner);
       } else {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('UPDATE FAILED')));
       }
@@ -64,75 +65,88 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('EDIT PROFILE', style: TextStyle(color: Colors.black, fontWeight: FontWeight.w900, fontSize: 16)),
-        leading: IconButton(
-          icon: const Icon(Icons.close, color: Colors.black),
-          onPressed: () => Navigator.pop(context),
-        ),
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.dark,
+        statusBarBrightness: Brightness.light,
+        systemNavigationBarColor: Colors.transparent,
+        systemNavigationBarIconBrightness: Brightness.dark,
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24.0),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildSectionTitle('PERSONAL DETAILS'),
-              TextFormField(
-                controller: _firstNameController,
-                decoration: const InputDecoration(labelText: 'FIRST NAME'),
-                validator: (v) => v!.isEmpty ? 'Required' : null,
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _lastNameController,
-                decoration: const InputDecoration(labelText: 'LAST NAME'),
-                validator: (v) => v!.isEmpty ? 'Required' : null,
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _emailController,
-                decoration: const InputDecoration(labelText: 'EMAIL'),
-                validator: (v) {
-                  if (v == null || v.isEmpty) return 'Required';
-                  final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
-                  if (!emailRegex.hasMatch(v)) return 'Invalid email format';
-                  return null;
-                },
-              ),
-              const SizedBox(height: 32),
-              _buildSectionTitle('BANK DETAILS'),
-              TextFormField(
-                controller: _bankNameController,
-                decoration: const InputDecoration(labelText: 'BANK NAME'),
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _accNoController,
-                decoration: const InputDecoration(labelText: 'ACCOUNT NUMBER'),
-                keyboardType: TextInputType.number,
-              ),
-              const SizedBox(height: 16),
-              DropdownButtonFormField<String>(
-                value: _accType,
-                decoration: const InputDecoration(labelText: 'ACCOUNT TYPE'),
-                items: ['Savings', 'Current'].map((t) => DropdownMenuItem(value: t, child: Text(t.toUpperCase()))).toList(),
-                onChanged: (v) => setState(() => _accType = v!),
-              ),
-              const SizedBox(height: 48),
-              SizedBox(
-                width: double.infinity,
-                height: 55,
-                child: ElevatedButton(
-                  onPressed: _isSaving ? null : _handleSave,
-                  child: _isSaving 
-                    ? const CircularProgressIndicator(color: Colors.white) 
-                    : const Text('SAVE CHANGES', style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: 2)),
+      child: Scaffold(
+        appBar: AppBar(
+          systemOverlayStyle: const SystemUiOverlayStyle(
+            statusBarColor: Colors.transparent,
+            statusBarIconBrightness: Brightness.dark,
+            statusBarBrightness: Brightness.light,
+          ),
+          title: const Text('EDIT PROFILE', style: TextStyle(color: Colors.black, fontWeight: FontWeight.w900, fontSize: 16)),
+          leading: IconButton(
+            icon: const Icon(Icons.close, color: Colors.black),
+            onPressed: () => Navigator.pop(context),
+          ),
+        ),        body: SingleChildScrollView(
+          padding: const EdgeInsets.all(24.0),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildSectionTitle('PERSONAL DETAILS'),
+                TextFormField(
+                  controller: _firstNameController,
+                  decoration: const InputDecoration(labelText: 'FIRST NAME'),
+                  validator: (v) => v!.isEmpty ? 'Required' : null,
                 ),
-              ),
-            ],
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _lastNameController,
+                  decoration: const InputDecoration(labelText: 'LAST NAME'),
+                  validator: (v) => v!.isEmpty ? 'Required' : null,
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _emailController,
+                  decoration: const InputDecoration(labelText: 'EMAIL'),
+                  validator: (v) {
+                    if (v == null || v.isEmpty) return 'Required';
+                    final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+                    if (!emailRegex.hasMatch(v)) return 'Invalid email format';
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 32),
+                _buildSectionTitle('BANK DETAILS'),
+                TextFormField(
+                  controller: _bankNameController,
+                  decoration: const InputDecoration(labelText: 'BANK NAME'),
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _accNoController,
+                  decoration: const InputDecoration(labelText: 'ACCOUNT NUMBER'),
+                  keyboardType: TextInputType.number,
+                ),
+                const SizedBox(height: 16),
+                DropdownButtonFormField<String>(
+                  value: _accType,
+                  decoration: const InputDecoration(labelText: 'ACCOUNT TYPE'),
+                  items: ['Savings', 'Current'].map((t) => DropdownMenuItem(value: t, child: Text(t.toUpperCase()))).toList(),
+                  onChanged: (v) => setState(() => _accType = v!),
+                ),
+                const SizedBox(height: 48),
+                SizedBox(
+                  width: double.infinity,
+                  height: 55,
+                  child: ElevatedButton(
+                    onPressed: _isSaving ? null : _handleSave,
+                    child: _isSaving 
+                      ? const CircularProgressIndicator(color: Colors.white) 
+                      : const Text('SAVE CHANGES', style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: 2)),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

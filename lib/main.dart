@@ -7,10 +7,13 @@ import 'services/session_manager.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
+  SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
     statusBarColor: Colors.transparent,
     statusBarIconBrightness: Brightness.dark,
     statusBarBrightness: Brightness.light,
+    systemNavigationBarColor: Colors.transparent,
+    systemNavigationBarIconBrightness: Brightness.dark,
   ));
   runApp(const MyApp());
 }
@@ -20,23 +23,32 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'xPower Partners',
-      debugShowCheckedModeBanner: false,
-      theme: _buildTheme(),
-      home: FutureBuilder<String?>(
-        future: SessionManager.getSession(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Scaffold(
-              body: Center(child: CircularProgressIndicator(color: Colors.black)),
-            );
-          }
-          if (snapshot.hasData && snapshot.data != null && snapshot.data!.isNotEmpty) {
-            return DashboardPage(phoneNumber: snapshot.data!);
-          }
-          return const LoginPage();
-        },
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.dark,
+        statusBarBrightness: Brightness.light,
+        systemNavigationBarColor: Colors.transparent,
+        systemNavigationBarIconBrightness: Brightness.dark,
+      ),
+      child: MaterialApp(
+        title: 'xPower Partners',
+        debugShowCheckedModeBanner: false,
+        theme: _buildTheme(),
+        home: FutureBuilder<String?>(
+          future: SessionManager.getSession(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Scaffold(
+                body: Center(child: CircularProgressIndicator(color: Colors.black)),
+              );
+            }
+            if (snapshot.hasData && snapshot.data != null && snapshot.data!.isNotEmpty) {
+              return DashboardPage(phoneNumber: snapshot.data!);
+            }
+            return const LoginPage();
+          },
+        ),
       ),
     );
   }

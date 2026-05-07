@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import '../widgets/system_overlay_wrapper.dart';
 
 class CommissionCalculatorPage extends StatefulWidget {
   const CommissionCalculatorPage({super.key});
@@ -34,13 +36,18 @@ class _CommissionCalculatorPageState extends State<CommissionCalculatorPage> {
       _estimatedMonthly = customers * avgValue * (_currentRate / 100);
     });
   }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
+@override
+Widget build(BuildContext context) {
+  return SystemOverlayWrapper(
+    child: Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text('EARNINGS CALCULATOR', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 14, letterSpacing: 1.5)),
+        systemOverlayStyle: SystemUiOverlayStyle(
+          statusBarColor: Colors.transparent,
+          statusBarIconBrightness: Brightness.dark,
+          statusBarBrightness: Brightness.light,
+        ),
+        title: const Text('COMMISSION CALCULATOR', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 14, letterSpacing: 1.5)),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new, size: 20),
           onPressed: () => Navigator.pop(context),
@@ -66,9 +73,9 @@ class _CommissionCalculatorPageState extends State<CommissionCalculatorPage> {
           ],
         ),
       ),
-    );
-  }
-
+    ),
+  );
+}
   Widget _buildInputCard() {
     return Container(
       padding: const EdgeInsets.all(24),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
+import '../widgets/system_overlay_wrapper.dart';
 
 class PayoutsView extends StatefulWidget {
   final String phoneNumber;
@@ -23,14 +24,17 @@ class _PayoutsViewState extends State<PayoutsView> {
   }
 
   Future<void> _fetchPayoutData() async {
+    if (!mounted) return;
     final mobileNo = widget.phoneNumber;
     final payouts = await _apiService.getPayouts(mobileNo);
     final dashboard = await _apiService.getDashboardData(mobileNo);
-    setState(() {
-      _payouts = payouts;
-      _dashboardData = dashboard;
-      _isLoading = false;
-    });
+    if (mounted) {
+      setState(() {
+        _payouts = payouts;
+        _dashboardData = dashboard;
+        _isLoading = false;
+      });
+    }
   }
 
   Future<void> _handlePayoutRequest() async {
@@ -128,31 +132,38 @@ class _PayoutsViewState extends State<PayoutsView> {
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) return const Center(child: CircularProgressIndicator(color: Colors.black));
+    if (_isLoading) return const SystemOverlayWrapper(child: Scaffold(body: Center(child: CircularProgressIndicator(color: Colors.black))));
 
-    return RefreshIndicator(
-      onRefresh: _fetchPayoutData,
-      color: Colors.black,
-      child: SingleChildScrollView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'PAYOUTS',
-              style: TextStyle(fontSize: 28, fontWeight: FontWeight.w900, letterSpacing: -1),
+    return SystemOverlayWrapper(
+      child: Scaffold(
+        backgroundColor: Colors.white,
+        appBar: AppBar(
+          title: const Text('PAYOUTS', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 14, letterSpacing: 1.5)),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_ios_new, size: 20),
+            onPressed: () => Navigator.pop(context),
+          ),
+        ),
+        body: RefreshIndicator(
+          onRefresh: _fetchPayoutData,
+          color: Colors.black,
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildBalanceCard(),
+                const SizedBox(height: 40),
+                const Text(
+                  'PAYOUT HISTORY',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900, letterSpacing: 1.5, color: Colors.black38)
+                ),
+                const SizedBox(height: 16),
+                _buildPayoutList(),
+              ],
             ),
-            const SizedBox(height: 24),
-            _buildBalanceCard(),
-            const SizedBox(height: 40),
-            const Text(
-              'PAYOUT HISTORY', 
-              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900, letterSpacing: 1.5, color: Colors.black38)
-            ),
-            const SizedBox(height: 16),
-            _buildPayoutList(),
-          ],
+          ),
         ),
       ),
     );

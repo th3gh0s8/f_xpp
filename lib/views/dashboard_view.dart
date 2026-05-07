@@ -32,16 +32,18 @@ class _DashboardViewState extends State<DashboardView> {
       final data = await _apiService.getDashboardData(mobileNo);
       final invoices = await _apiService.getInvoices(mobileNo);
       final partner = await _apiService.getPartner(mobileNo);
-      setState(() {
-        _dashboardData = data;
-        _recentInvoices = invoices;
-        _partner = partner;
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _dashboardData = data;
+          _recentInvoices = invoices;
+          _partner = partner;
+          _isLoading = false;
+        });
+      }
       print('DEBUG: Dashboard Data: $_dashboardData');
     } catch (e) {
       print('DEBUG: Dashboard Load Error: $e');
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 

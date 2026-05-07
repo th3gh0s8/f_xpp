@@ -1,80 +1,63 @@
 <?php
-// Enable error reporting to identify potential issues
-ini_set('display_errors', 0); // Disable direct display to prevent HTML in JSON
-error_reporting(E_ALL);
+// Capture all output to prevent corrupting JSON
+ob_start();
+
+// Disable errors and display to prevent contamination
+ini_set('display_errors', 0);
+error_reporting(0);
 
 header('Content-Type: application/json');
 header('Cache-Control: no-cache, no-store, must-revalidate');
-header('Pragma: no-cache');
-header('Expires: 0');
 
-if (file_exists('db/db_config.php')) {
-    require_once 'db/db_config.php';
-} else {
-    require_once 'db_config.php';
-}
+require_once 'db/db_config.php';
 
 $mobile_no = $_GET['mobile_no'] ?? '';
 
 if (empty($mobile_no)) {
+    ob_end_clean();
     echo json_encode(["success" => false, "message" => "Mobile number required"]);
     exit;
 }
 
 try {
-    if (!$conn) throw new Exception("Database connection not initialized.");
+    if (!$conn) throw new Exception("DB connection failed.");
 
-    // 1. Resolve Partner ID
-    $stmtP = $conn->prepare("SELECT ID FROM partners WHERE mobile_no = ?");
-    if (!$stmtP) throw new Exception("Prepare failed: " . $conn->error);
-    
-    $stmtP->bind_param("s", $mobile_no);
-    $stmtP->execute();
-    $partner = $stmtP->get_result()->fetch_assoc();
-    $partner_id = isset($partner['ID']) ? (int)$partner['ID'] : 0;
-
-    // 2. Fetch customers
-    // The table uses partnerTb (INT) which might hold ID or mobile number.
-    // We cast partnerTb to CHAR in the query to handle both string/int comparisons.
-    $sql = "SELECT * FROM new_clients WHERE CAST(partnerTb AS CHAR) = ? OR CAST(partnerTb AS CHAR) = ? ORDER BY rDateTime DESC";
+    $sql = "SELECT c.* 
+            FROM new_clients c 
+            JOIN partners p ON c.partnerTb = p.ID 
+            WHERE (p.mobile_no = ? OR p.mobile_no = ? OR p.mobile_no = ?)
+            ORDER BY c.rDateTime DESC";
+            
     $stmtC = $conn->prepare($sql);
     if (!$stmtC) throw new Exception("Prepare failed: " . $conn->error);
-    
-    // We bind as strings (s) because we cast the DB column to CHAR in the query.
-    $param1 = (string)($partner_id > 0 ? $partner_id : $mobile_no);
-    $param2 = (string)$mobile_no;
-    $stmtC->bind_param("ss", $param1, $param2);
-    
-    if (!$stmtC->execute()) {
-        throw new Exception("Query failed: " . $stmtC->error);
-    }
-    
+
+    $with_zero = '0' . $mobile_no;
+    $with_94 = '94' . ltrim($mobile_no, '0');
+
+    $stmtC->bind_param("sss", $mobile_no, $with_zero, $with_94);
+    $stmtC->execute();
     $result = $stmtC->get_result();
+
     $customers = [];
     while ($row = $result->fetch_assoc()) {
-        // Map 'Active' to 'APPROVED' for the app's UI
-        if (isset($row['status']) && (strcasecmp($row['status'], 'Active') == 0 || strcasecmp($row['status'], 'Approved') == 0)) {
-            $row['display_status'] = 'APPROVED';
-        } else {
-            $row['display_status'] = strtoupper($row['status'] ?? 'PENDING');
-        }
-        
+        $status = strtolower($row['status'] ?? 'pending');
+        $row['display_status'] = ($status == 'active' || $status == 'approved') ? 'APPROVED' : 'PENDING';
         $customers[] = $row;
     }
 
-    echo json_encode([
+    $response = [
         "success" => true,
         "data" => $customers,
-        "debug_partner_id" => $partner_id,
         "count" => count($customers)
-    ]);
+    ];
+
+    ob_end_clean();
+    echo json_encode($response);
 
 } catch (Exception $e) {
-    echo json_encode([
-        "success" => false, 
-        "message" => "Server Error: " . $e->getMessage()
-    ]);
+    ob_end_clean();
+    echo json_encode(["success" => false, "message" => "API Error: " . $e->getMessage()]);
 }
 
-$conn->close();
+if (isset($conn)) $conn->close();
 ?>
