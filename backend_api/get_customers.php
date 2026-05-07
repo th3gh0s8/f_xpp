@@ -22,19 +22,19 @@ if (empty($mobile_no)) {
 try {
     if (!$conn) throw new Exception("DB connection failed.");
 
-    $sql = "SELECT c.* 
+    $sql = \"SELECT c.* 
             FROM new_clients c 
             JOIN partners p ON c.partnerTb = p.ID 
-            WHERE (p.mobile_no = ? OR p.mobile_no = ? OR p.mobile_no = ?)
-            ORDER BY c.rDateTime DESC";
+            WHERE (p.mobile_no = ? OR p.mobile_no = ?)
+            ORDER BY c.rDateTime DESC\";
             
     $stmtC = $conn->prepare($sql);
     if (!$stmtC) throw new Exception("Prepare failed: " . $conn->error);
 
-    $with_zero = '0' . $mobile_no;
-    $with_94 = '94' . ltrim($mobile_no, '0');
+    $with_zero = '0' . ltrim($mobile_no, '0');
+    $no_zero = ltrim($mobile_no, '0');
 
-    $stmtC->bind_param("sss", $mobile_no, $with_zero, $with_94);
+    $stmtC->bind_param(\"ss\", $no_zero, $with_zero);
     $stmtC->execute();
     $result = $stmtC->get_result();
 

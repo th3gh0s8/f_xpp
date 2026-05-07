@@ -97,7 +97,7 @@ class _DashboardViewState extends State<DashboardView> {
         ),
         const SizedBox(height: 4),
         Text(
-          hasPartner ? '${_partner!.firstName} ${_partner!.lastName}'.toUpperCase() : widget.phoneNumber,
+          hasPartner ? '${_partner!.firstName} ${_partner!.lastName}'.toUpperCase() : (_partner?.mobileNo ?? widget.phoneNumber),
           style: TextStyle(
             fontSize: hasPartner ? 28 : 20, 
             fontWeight: FontWeight.w900, 

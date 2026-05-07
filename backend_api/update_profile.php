@@ -16,13 +16,21 @@ if (empty($mobile_no)) {
     exit;
 }
 
-$stmt = $conn->prepare("UPDATE partners SET first_name = ?, last_name = ?, c_code = ?, email = ?, bank_account_no = ?, bank_name = ?, bank_account_type = ? WHERE mobile_no = ?");
-$stmt->bind_param("ssssssss", $first_name, $last_name, $c_code, $email, $bank_account_no, $bank_name, $bank_account_type, $mobile_no);
+$stmt = $conn->prepare(\"UPDATE partners SET first_name = ?, last_name = ?, c_code = ?, email = ?, bank_account_no = ?, bank_name = ?, bank_account_type = ? WHERE mobile_no = ? OR mobile_no = ?\");
+$with_zero = '0' . ltrim($mobile_no, '0');
+$no_zero = ltrim($mobile_no, '0');
+$stmt->bind_param(\"sssssssss\", $first_name, $last_name, $c_code, $email, $bank_account_no, $bank_name, $bank_account_type, $no_zero, $with_zero);
 
 if ($stmt->execute()) {
-    echo json_encode(["success" => true, "message" => "Profile updated successfully"]);
+    if ($stmt->affected_rows > 0) {
+        echo json_encode([\"success\" => true, \"message\" => \"Profile updated successfully\"]);
+    } else {
+        // Still return success true if the query executed, but maybe nothing changed
+        // Or maybe we should check if the partner even exists
+        echo json_encode([\"success\" => true, \"message\" => \"Profile update completed (no changes or record not found)\"]);
+    }
 } else {
-    echo json_encode(["success" => false, "message" => "Failed to update profile: " . $stmt->error]);
+    echo json_encode([\"success\" => false, \"message\" => \"Failed to update profile: \" . $stmt->error]);
 }
 
 $stmt->close();

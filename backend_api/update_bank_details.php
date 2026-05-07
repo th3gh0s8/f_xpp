@@ -12,8 +12,10 @@ if (empty($mobile_no) || empty($bank_account_no) || empty($bank_name)) {
     exit;
 }
 
-$stmt = $conn->prepare("UPDATE partners SET bank_account_no = ?, bank_name = ?, bank_account_type = ? WHERE mobile_no = ?");
-$stmt->bind_param("isss", $bank_account_no, $bank_name, $bank_account_type, $mobile_no);
+$stmt = $conn->prepare(\"UPDATE partners SET bank_account_no = ?, bank_name = ?, bank_account_type = ? WHERE mobile_no = ? OR mobile_no = ?\");
+$with_zero = '0' . ltrim($mobile_no, '0');
+$no_zero = ltrim($mobile_no, '0');
+$stmt->bind_param(\"issss\", $bank_account_no, $bank_name, $bank_account_type, $no_zero, $with_zero);
 
 if ($stmt->execute()) {
     echo json_encode(["success" => true, "message" => "Bank details updated successfully"]);

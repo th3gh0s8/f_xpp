@@ -57,7 +57,7 @@ class _ProfileViewState extends State<ProfileView> {
             [
               _buildModernTile(Icons.person, 'FULL NAME', '${_partner?.firstName} ${_partner?.lastName}'.toUpperCase()),
               _buildModernTile(Icons.alternate_email, 'EMAIL ADDRESS', _partner?.email?.toUpperCase() ?? '-'),
-              _buildModernTile(Icons.phone_android, 'MOBILE NO', widget.phoneNumber),
+              _buildModernTile(Icons.phone_android, 'MOBILE NO', _partner?.mobileNo ?? widget.phoneNumber),
             ],
           ),
           const SizedBox(height: 24),

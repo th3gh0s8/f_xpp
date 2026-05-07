@@ -13,9 +13,11 @@ if (empty($mobile_no)) {
     exit;
 }
 
-// 1. Resolve Partner's internal numeric ID first
-$stmtP = $conn->prepare("SELECT ID FROM partners WHERE mobile_no = ?");
-$stmtP->bind_param("s", $mobile_no);
+// 1. Resolve Partner's internal numeric ID first (checking variations for safety)
+$stmtP = $conn->prepare(\"SELECT ID FROM partners WHERE mobile_no = ? OR mobile_no = ?\");
+$with_zero = '0' . ltrim($mobile_no, '0');
+$no_zero = ltrim($mobile_no, '0');
+$stmtP->bind_param(\"ss\", $no_zero, $with_zero);
 $stmtP->execute();
 $partner = $stmtP->get_result()->fetch_assoc();
 $partner_id = $partner['ID'] ?? 0;

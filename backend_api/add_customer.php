@@ -17,8 +17,10 @@ $partner_mobile = $_POST['partnerTb'] ?? '';
 $partner_identifier = $partner_mobile; // Default to mobile number
 
 if (!empty($partner_mobile)) {
-    $stmtP = $conn->prepare("SELECT ID FROM partners WHERE mobile_no = ?");
-    $stmtP->bind_param("s", $partner_mobile);
+    $stmtP = $conn->prepare("SELECT ID FROM partners WHERE mobile_no = ? OR mobile_no = ? OR mobile_no = ?");
+    $with_zero = '0' . ltrim($partner_mobile, '0');
+    $no_zero = ltrim($partner_mobile, '0');
+    $stmtP->bind_param("sss", $partner_mobile, $no_zero, $with_zero);
     $stmtP->execute();
     $p_res = $stmtP->get_result()->fetch_assoc();
     if ($p_res && isset($p_res['ID'])) {

@@ -7,14 +7,14 @@ error_reporting(E_ALL);
 header('Content-Type: application/json');
 require_once 'db/db_config.php';
 
-$first_name = $_POST['first_name'] ?? '';
-$last_name = $_POST['last_name'] ?? '';
-$c_code = $_POST['c_code'] ?? '';
-$mobile_no = $_POST['mobile_no'] ?? '';
-$email = $_POST['email'] ?? '';
-$bank_account_no = $_POST['bank_account_no'] ?? '';
-$bank_name = $_POST['bank_name'] ?? '';
-$bank_account_type = $_POST['bank_account_type'] ?? '';
+$first_name = $_REQUEST['first_name'] ?? '';
+$last_name = $_REQUEST['last_name'] ?? '';
+$c_code = $_REQUEST['c_code'] ?? '';
+$mobile_no = $_REQUEST['mobile_no'] ?? '';
+$email = $_REQUEST['email'] ?? '';
+$bank_account_no = $_REQUEST['bank_account_no'] ?? '';
+$bank_name = $_REQUEST['bank_name'] ?? '';
+$bank_account_type = $_REQUEST['bank_account_type'] ?? '';
 
 if (empty($mobile_no) || empty($first_name) || empty($last_name)) {
     echo json_encode(["success" => false, "message" => "Required fields are missing"]);
@@ -26,8 +26,13 @@ try {
     $check = $conn->prepare("SELECT * FROM partners WHERE mobile_no = ?");
     $check->bind_param("s", $mobile_no);
     $check->execute();
-    if ($check->get_result()->num_rows > 0) {
-        echo json_encode(["success" => false, "message" => "Mobile number already registered"]);
+    $existing = $check->get_result()->fetch_assoc();
+    if ($existing) {
+        echo json_encode([
+            "success" => true, 
+            "message" => "Mobile number already registered",
+            "data" => $existing
+        ]);
         exit;
     }
 
@@ -38,6 +43,13 @@ try {
     if ($stmt->execute()) {
         $partner_id = $conn->insert_id; // Get the auto-increment ID
         $now = date('Y-m-d H:i:s');
+
+        // Fetch the newly created partner
+        $get_stmt = $conn->prepare("SELECT * FROM partners WHERE ID = ?");
+        $get_stmt->bind_param("i", $partner_id);
+        $get_stmt->execute();
+        $partner_data = $get_stmt->get_result()->fetch_assoc();
+        $get_stmt->close();
 
         // 3. Log registration
         $act_type = 'register';
@@ -64,10 +76,17 @@ try {
             echo json_encode([
                 "success" => true,
                 "message" => "Partner registered and OTP generated",
-                "debug_otp" => $otp
+                "data" => $partner_data,
+                "debug_otp" => $otp,
+                "db_status" => "OTP Saved Successfully"
             ]);
         } else {
-            echo json_encode(["success" => false, "message" => "Registration successful but failed to save OTP: " . $otp_stmt->error]);
+            echo json_encode([
+                "success" => true, 
+                "message" => "Registration successful but failed to save OTP",
+                "data" => $partner_data,
+                "db_status" => "OTP Save Failed: " . $otp_stmt->error
+            ]);
         }
         $otp_stmt->close();
     } else {

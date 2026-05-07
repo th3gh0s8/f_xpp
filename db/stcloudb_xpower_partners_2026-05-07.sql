@@ -565,7 +565,7 @@ CREATE TABLE `partners` (
   `c_code` int(5) NOT NULL,
   `mobile_no` varchar(20) NOT NULL,
   `email` varchar(50) NOT NULL,
-  `bank_account_no` int(11) NOT NULL,
+  `bank_account_no` varchar(25) NOT NULL,
   `bank_name` varchar(25) NOT NULL,
   `bank_account_type` varchar(25) NOT NULL,
   PRIMARY KEY (`ID`)
