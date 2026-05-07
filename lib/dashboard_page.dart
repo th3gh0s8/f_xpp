@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'views/dashboard_view.dart';
 import 'views/invoices_view.dart';
 import 'views/payouts_view.dart';
@@ -33,38 +34,53 @@ class _DashboardPageState extends State<DashboardPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: SafeArea(
-        child: IndexedStack(
-          index: _selectedIndex,
-          children: [
-            DashboardView(key: _dashboardKey, phoneNumber: widget.phoneNumber),
-            InvoicesView(phoneNumber: widget.phoneNumber),
-            PayoutsView(phoneNumber: widget.phoneNumber),
-            ProfileView(key: _profileKey, phoneNumber: widget.phoneNumber, onProfileUpdated: _refreshAll),
-          ],
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        if (_selectedIndex != 0) {
+          setState(() {
+            _selectedIndex = 0;
+          });
+        } else {
+          // If already on HOME, we could potentially show an exit confirmation
+          // or just do nothing (standard behavior for many apps)
+          SystemNavigator.pop();
+        }
+      },
+      child: Scaffold(
+        body: SafeArea(
+          child: IndexedStack(
+            index: _selectedIndex,
+            children: [
+              DashboardView(key: _dashboardKey, phoneNumber: widget.phoneNumber),
+              InvoicesView(phoneNumber: widget.phoneNumber),
+              PayoutsView(phoneNumber: widget.phoneNumber),
+              ProfileView(key: _profileKey, phoneNumber: widget.phoneNumber, onProfileUpdated: _refreshAll),
+            ],
+          ),
         ),
+        floatingActionButton: FloatingActionButton(
+          onPressed: () async {
+            final result = await Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => AddCustomerPage(phoneNumber: widget.phoneNumber)),
+            );
+            
+            if (result == true) {
+              setState(() {
+                _selectedIndex = 0;
+                _dashboardKey = UniqueKey();
+              });
+            }
+          },
+          backgroundColor: Colors.black,
+          shape: const CircleBorder(),
+          child: const Icon(Icons.add, color: Colors.white, size: 28),
+        ),
+        floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+        bottomNavigationBar: _buildBottomNav(),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () async {
-          final result = await Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => AddCustomerPage(phoneNumber: widget.phoneNumber)),
-          );
-          
-          if (result == true) {
-            setState(() {
-              _selectedIndex = 0;
-              _dashboardKey = UniqueKey();
-            });
-          }
-        },
-        backgroundColor: Colors.black,
-        shape: const CircleBorder(),
-        child: const Icon(Icons.add, color: Colors.white, size: 28),
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-      bottomNavigationBar: _buildBottomNav(),
     );
   }
 

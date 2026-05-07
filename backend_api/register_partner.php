@@ -1,6 +1,6 @@
 <?php
+require_once "cors_headers.php";
 // ROBUST PRODUCTION REGISTRATION - WITH PATH FIX
-header('Content-Type: application/json');
 
 if (file_exists('db/db_config.php')) {
     require_once 'db/db_config.php';

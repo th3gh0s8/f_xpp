@@ -1,19 +1,15 @@
 <?php
-// Enable CORS
-header("Access-Control-Allow-Origin: *");
-header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
-header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
-
-// Handle preflight requests
-if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
-    http_response_code(200);
-    exit;
-}
-
 $host = "localhost";
 $user = "root";
 $pass = "";
 $dbname = "xpartner";
+
+// Check if we are on production
+if ($_SERVER['HTTP_HOST'] === 'powersoftt.com') {
+    $user = "stcloudb_xPartners";
+    $pass = "xPartner-2026-05-05";
+    $dbname = "stcloudb_xpower_partners";
+}
 
 $conn = new mysqli($host, $user, $pass, $dbname);
 

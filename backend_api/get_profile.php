@@ -1,7 +1,6 @@
 <?php
-// FETCH PARTNER DATA WITHOUT GENERATING OTP
-header('Content-Type: application/json');
-header('Cache-Control: no-cache, no-store, must-revalidate');
+// FETCH PARTNER DATA WITHOUT GENERATING OTP - STABILIZED VERSION
+require_once 'cors_headers.php';
 
 if (file_exists('db/db_config.php')) {
     require_once 'db/db_config.php';
@@ -26,15 +25,17 @@ try {
     $stmt = $conn->prepare("SELECT * FROM partners WHERE mobile_no = ? OR mobile_no = ? LIMIT 1");
     $stmt->bind_param("ss", $no_zero, $with_zero);
     $stmt->execute();
-    $partner = $stmt->get_result()->fetch_assoc();
+    $result = $stmt->get_result();
 
-    if ($partner) {
+    if ($result->num_rows > 0) {
+        $partner = $result->fetch_assoc();
+        // IMPORTANT: Ensure we send the data inside a 'data' key to match the App's expectations
         echo json_encode([
             "success" => true,
             "data" => $partner
         ]);
     } else {
-        echo json_encode(["success" => false, "message" => "Partner not found"]);
+        echo json_encode(["success" => false, "message" => "Partner not found for: $mobile_no"]);
     }
     $stmt->close();
 } catch (Exception $e) {

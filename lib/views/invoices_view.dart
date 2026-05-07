@@ -24,6 +24,7 @@ class _InvoicesViewState extends State<InvoicesView> {
   }
 
   Future<void> _fetchInvoices() async {
+    if (!mounted) return;
     final mobileNo = widget.phoneNumber;
     final invoices = await _apiService.getInvoices(mobileNo);
     if (mounted) {
@@ -43,10 +44,7 @@ class _InvoicesViewState extends State<InvoicesView> {
         backgroundColor: const Color(0xFFF8F8F8),
         appBar: AppBar(
           title: const Text('ALL INVOICES', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 14, letterSpacing: 1.5)),
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back_ios_new, size: 20),
-            onPressed: () => Navigator.pop(context),
-          ),
+          automaticallyImplyLeading: false, // Prevent accidental back button
         ),
         body: RefreshIndicator(
           onRefresh: _fetchInvoices,

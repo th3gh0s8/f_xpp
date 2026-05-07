@@ -1,61 +1,72 @@
 <?php
-// Capture all output to prevent corrupting JSON
-ob_start();
+require_once 'cors_headers.php';
 
-// Disable errors and display to prevent contamination
+// CRITICAL: Ensure NO output before JSON
 ini_set('display_errors', 0);
-error_reporting(0);
+error_reporting(E_ALL);
 
-header('Content-Type: application/json');
-header('Cache-Control: no-cache, no-store, must-revalidate');
-
-require_once 'db/db_config.php';
+// 1. Path resolution for moved db folder
+if (file_exists('db/db_config.php')) {
+    require_once 'db/db_config.php';
+} elseif (file_exists('db_config.php')) {
+    require_once 'db_config.php';
+} else {
+    die(json_encode(["success" => false, "message" => "Database file not found."]));
+}
 
 $mobile_no = $_GET['mobile_no'] ?? '';
 
 if (empty($mobile_no)) {
-    ob_end_clean();
-    echo json_encode(["success" => false, "message" => "Mobile number required"]);
-    exit;
+    die(json_encode(["success" => false, "message" => "Mobile number missing"]));
 }
 
 try {
     if (!$conn) throw new Exception("DB connection failed.");
 
-    $sql = \"SELECT c.* 
-            FROM new_clients c 
-            JOIN partners p ON c.partnerTb = p.ID 
-            WHERE (p.mobile_no = ? OR p.mobile_no = ?)
-            ORDER BY c.rDateTime DESC\";
-            
+    // Normalize mobile number
+    $clean_no = preg_replace('/\D/', '', $mobile_no);
+    $no_zero = ltrim($clean_no, '0');
+    $with_zero = '0' . $no_zero;
+
+    // 1. Get Partner ID
+    $stmtP = $conn->prepare("SELECT ID FROM partners WHERE mobile_no = ? OR mobile_no = ?");
+    $stmtP->bind_param("ss", $no_zero, $with_zero);
+    $stmtP->execute();
+    $p_res = $stmtP->get_result()->fetch_assoc();
+    $partner_id = (int)($p_res['ID'] ?? 0);
+
+    if ($partner_id == 0) {
+        die(json_encode(["success" => false, "message" => "Partner record not found"]));
+    }
+
+    // 2. Fetch Customers
+    // Wide search for legacy data + new ID based data
+    $sql = "SELECT * FROM new_clients WHERE partnerTb = ? OR partnerTb = ? OR partnerTb = ? ORDER BY rDateTime DESC";
     $stmtC = $conn->prepare($sql);
-    if (!$stmtC) throw new Exception("Prepare failed: " . $conn->error);
 
-    $with_zero = '0' . ltrim($mobile_no, '0');
-    $no_zero = ltrim($mobile_no, '0');
-
-    $stmtC->bind_param(\"ss\", $no_zero, $with_zero);
+    // Bind parameters: partnerTb is INT, but we also check legacy strings
+    $stmtC->bind_param("iss", $partner_id, $no_zero, $with_zero);
     $stmtC->execute();
     $result = $stmtC->get_result();
 
     $customers = [];
     while ($row = $result->fetch_assoc()) {
         $status = strtolower($row['status'] ?? 'pending');
-        $row['display_status'] = ($status == 'active' || $status == 'approved') ? 'APPROVED' : 'PENDING';
+        if ($status == 'active' || $status == 'approved') {
+            $row['display_status'] = 'APPROVED';
+        } else {
+            $row['display_status'] = 'PENDING';
+        }
         $customers[] = $row;
     }
 
-    $response = [
+    echo json_encode([
         "success" => true,
         "data" => $customers,
         "count" => count($customers)
-    ];
-
-    ob_end_clean();
-    echo json_encode($response);
+    ]);
 
 } catch (Exception $e) {
-    ob_end_clean();
     echo json_encode(["success" => false, "message" => "API Error: " . $e->getMessage()]);
 }
 

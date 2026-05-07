@@ -139,10 +139,7 @@ class _PayoutsViewState extends State<PayoutsView> {
         backgroundColor: Colors.white,
         appBar: AppBar(
           title: const Text('PAYOUTS', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 14, letterSpacing: 1.5)),
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back_ios_new, size: 20),
-            onPressed: () => Navigator.pop(context),
-          ),
+          automaticallyImplyLeading: false,
         ),
         body: RefreshIndicator(
           onRefresh: _fetchPayoutData,

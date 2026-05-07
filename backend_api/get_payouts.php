@@ -1,7 +1,14 @@
 <?php
-header('Content-Type: application/json');
+require_once "cors_headers.php";
 header('Cache-Control: no-cache, no-store, must-revalidate');
-require_once 'db/db_config.php';
+
+if (file_exists('db/db_config.php')) {
+    require_once 'db/db_config.php';
+} elseif (file_exists('db_config.php')) {
+    require_once 'db_config.php';
+} else {
+    die(json_encode(["success" => false, "message" => "CRITICAL: Database config not found."]));
+}
 
 $mobile_no = $_GET['mobile_no'] ?? '';
 
@@ -10,33 +17,32 @@ if (empty($mobile_no)) {
     exit;
 }
 
-// 1. Resolve Partner ID (checking variations for safety)
-$stmtP = $conn->prepare(\"SELECT ID FROM partners WHERE mobile_no = ? OR mobile_no = ?\");
-$with_zero = '0' . ltrim($mobile_no, '0');
-$no_zero = ltrim($mobile_no, '0');
-$stmtP->bind_param(\"ss\", $no_zero, $with_zero);
-$stmtP->execute();
-$partner = $stmtP->get_result()->fetch_assoc();
-$partner_id = $partner['ID'] ?? 0;
+try {
+    // 1. Resolve Partner ID
+    $stmtP = $conn->prepare("SELECT ID FROM partners WHERE mobile_no = ? OR mobile_no = ?");
+    $no_zero = ltrim($mobile_no, '0');
+    $with_zero = '0' . $no_zero;
+    $stmtP->bind_param("ss", $no_zero, $with_zero);
+    $stmtP->execute();
+    $p_res = $stmtP->get_result()->fetch_assoc();
+    $partner_id = (int)($p_res['ID'] ?? 0);
 
-if ($partner_id == 0) {
-    echo json_encode(["success" => false, "message" => "Partner not found"]);
-    exit;
+    // 2. Query from payout_request table
+    $stmt = $conn->prepare("SELECT * FROM payout_request WHERE partner_id = ? ORDER BY request_date DESC, request_time DESC");
+    $stmt->bind_param("i", $partner_id);
+    $stmt->execute();
+    $result = $stmt->get_result();
+
+    $payouts = [];
+    while ($row = $result->fetch_assoc()) {
+        $payouts[] = $row;
+    }
+
+    echo json_encode(["success" => true, "data" => $payouts]);
+
+} catch (Exception $e) {
+    echo json_encode(["success" => false, "message" => "API Error: " . $e->getMessage()]);
 }
 
-// 2. Query from payout_request table
-$stmt = $conn->prepare("SELECT * FROM payout_request WHERE partner_id = ? ORDER BY request_date DESC, request_time DESC");
-$stmt->bind_param("i", $partner_id);
-$stmt->execute();
-$result = $stmt->get_result();
-
-$payouts = [];
-while ($row = $result->fetch_assoc()) {
-    $payouts[] = $row;
-}
-
-echo json_encode(["success" => true, "data" => $payouts]);
-
-$stmt->close();
 $conn->close();
 ?>

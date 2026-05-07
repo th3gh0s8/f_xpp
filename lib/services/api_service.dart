@@ -10,18 +10,15 @@ class ApiService {
   static const String baseUrl = 'https://powersoftt.com/xPowerPartners';
 
   Future<Partner?> getPartner(String mobileNo) async {
-    // FORCE CLEAN: Remove +, country code, and leading zeros
     String cleanNo = mobileNo.replaceAll(RegExp(r'\D'), '');
     if (cleanNo.startsWith('94')) cleanNo = cleanNo.substring(2);
     if (cleanNo.startsWith('0')) cleanNo = cleanNo.substring(1);
 
-    // Add Cache Buster (unique timestamp) to force server to generate NEW otp every time
     final url = '$baseUrl/get_partner.php?mobile_no=$cleanNo&t=${DateTime.now().millisecondsSinceEpoch}';
     print('DEBUG: [getPartner] Requesting fresh OTP from: $url');
     
     try {
       final response = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 10));
-      print('DEBUG: [getPartner] Status Code: ${response.statusCode}');
       print('DEBUG: [getPartner] Raw Body: ${response.body}');
 
       if (response.statusCode == 200) {
@@ -37,10 +34,17 @@ class ApiService {
   }
 
   Future<Partner?> getProfile(String mobileNo) async {
+    String cleanNo = mobileNo.replaceAll(RegExp(r'\D'), '');
+    if (cleanNo.startsWith('94')) cleanNo = cleanNo.substring(2);
+    if (cleanNo.startsWith('0')) cleanNo = cleanNo.substring(1);
+
+    final url = '$baseUrl/get_profile.php?mobile_no=$cleanNo&t=${DateTime.now().millisecondsSinceEpoch}';
+    print('DEBUG: [getProfile] Fetching data from: $url');
+
     try {
-      final response = await http.get(
-        Uri.parse('$baseUrl/get_profile.php?mobile_no=$mobileNo&t=${DateTime.now().millisecondsSinceEpoch}'),
-      );
+      final response = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 10));
+      print('DEBUG: [getProfile] Raw Body: ${response.body}');
+
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         if (data['success'] == true) {
@@ -57,7 +61,7 @@ class ApiService {
     try {
       final body = {'mobile_no': mobileNo, 'otp_code': otpCode};
       final response = await http.post(Uri.parse('$baseUrl/verify_otp.php'), body: body);
-      print('DEBUG: [verifyOTP] Body: $body, Status: ${response.statusCode}, Response: ${response.body}');
+      print('DEBUG: [verifyOTP] Response: ${response.body}');
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         return data['success'] == true;
@@ -75,15 +79,10 @@ class ApiService {
       );
 
       if (response.statusCode == 200) {
-        print('DEBUG: Invoices Raw Response: ${response.body}');
         final data = json.decode(response.body);
         if (data['success'] == true) {
-          return (data['data'] as List)
-              .map((item) => Invoice.fromJson(item))
-              .toList();
+          return (data['data'] as List).map((item) => Invoice.fromJson(item)).toList();
         }
-      } else {
-        print('DEBUG: Invoices API Error Status: ${response.statusCode}');
       }
     } catch (e) {
       print('API Error (getInvoices): $e');
@@ -122,12 +121,13 @@ class ApiService {
       final response = await http.get(
         Uri.parse('$baseUrl/get_dashboard_data.php?mobile_no=$mobileNo&t=${DateTime.now().millisecondsSinceEpoch}'),
       );
+      print('DEBUG: [getDashboardData] Raw Body: ${response.body}');
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         if (data['success'] == true) return data['data'];
       }
     } catch (e) {
-      print('API Error: $e');
+      print('API Error (getDashboardData): $e');
     }
     return null;
   }

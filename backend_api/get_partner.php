@@ -1,9 +1,5 @@
 <?php
-// FINAL PRODUCTION STABILIZER - ROBUST OTP RE-GENERATION
-header('Content-Type: application/json');
-header('Cache-Control: no-cache, no-store, must-revalidate');
-header('Pragma: no-cache');
-header('Expires: 0');
+require_once 'cors_headers.php';
 
 if (file_exists('db/db_config.php')) {
     require_once 'db/db_config.php';
@@ -37,7 +33,6 @@ try {
         $conn->query("INSERT INTO login_activity (u_id, act_type, time, status) VALUES ($partner_id, 2, '$now', 0)");
 
         // 4. CRITICAL FIX: FORCE EXPIRE ALL OLD CODES FOR THIS USER
-        // We use a direct query to ensure every single active code for this ID is invalidated
         $conn->query("UPDATE web_codes SET status = 1 WHERE u_Id = '$partner_id' OR u_Id = '$no_zero' OR u_Id = '$with_zero'");
 
         // 5. INSERT NEW ACTIVE OTP

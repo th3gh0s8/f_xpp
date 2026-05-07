@@ -1,5 +1,5 @@
 <?php
-header('Content-Type: application/json');
+require_once 'cors_headers.php';
 
 if (file_exists('db/db_config.php')) {
     require_once 'db/db_config.php';
