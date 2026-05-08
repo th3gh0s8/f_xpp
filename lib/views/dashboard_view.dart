@@ -169,61 +169,62 @@ class _DashboardViewState extends State<DashboardView> {
     String apiLevel = data?['level']?.toString() ?? 'ASSOCIATE';
     List<Color> levelColors = _getLevelColors(apiLevel);
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              'PARTNER GROWTH ($totalCustomers / 250)', 
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w900, letterSpacing: 1.5, color: Colors.black38),
-            ),
-            GestureDetector(
-              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const LevelBenefitsPage())),
-              child: const Text(
+    return GestureDetector(
+      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const LevelBenefitsPage())),
+      behavior: HitTestBehavior.opaque,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'PARTNER GROWTH', 
+                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w900, letterSpacing: 1.5, color: Colors.black38),
+              ),
+              const Text(
                 'VIEW DETAILS',
                 style: TextStyle(fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 1, color: Colors.black),
               ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-        Stack(
-          children: [
-            Container(
-              height: 12,
-              width: double.infinity,
-              decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.05),
-                borderRadius: BorderRadius.circular(6),
-              ),
-            ),
-            FractionallySizedBox(
-              widthFactor: progress,
-              child: Container(
+            ],
+          ),
+          const SizedBox(height: 16),
+          Stack(
+            children: [
+              Container(
                 height: 12,
+                width: double.infinity,
                 decoration: BoxDecoration(
-                  gradient: LinearGradient(colors: levelColors),
+                  color: Colors.black.withOpacity(0.05),
                   borderRadius: BorderRadius.circular(6),
-                  boxShadow: [
-                    BoxShadow(color: levelColors[0].withOpacity(0.3), blurRadius: 4, offset: const Offset(0, 2))
-                  ]
                 ),
               ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        const Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            _LevelMarker(label: 'ASSOCIATE', color: Color(0xFF9C27B0)),
-            _LevelMarker(label: 'ADVISOR', color: Color(0xFF2E7D32)),
-            _LevelMarker(label: 'MASTER', color: Color(0xFFC62828)),
-          ],
-        ),
-      ],
+              FractionallySizedBox(
+                widthFactor: progress,
+                child: Container(
+                  height: 12,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(colors: levelColors),
+                    borderRadius: BorderRadius.circular(6),
+                    boxShadow: [
+                      BoxShadow(color: levelColors[0].withOpacity(0.3), blurRadius: 4, offset: const Offset(0, 2))
+                    ]
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          const Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _LevelMarker(label: 'ASSOCIATE', color: Color(0xFF9C27B0)),
+              _LevelMarker(label: 'ADVISOR', color: Color(0xFF2E7D32)),
+              _LevelMarker(label: 'MASTER', color: Color(0xFFC62828)),
+            ],
+          ),
+        ],
+      ),
     );
   }
 

@@ -16,6 +16,7 @@ class _MyCustomersPageState extends State<MyCustomersPage> {
   final ApiService _apiService = ApiService();
   List<Customer> _customers = [];
   bool _isLoading = true;
+  String _selectedFilter = 'ALL'; // 'ALL', 'APPROVED', 'PENDING'
 
   @override
   void initState() {
@@ -39,6 +40,11 @@ class _MyCustomersPageState extends State<MyCustomersPage> {
     }
   }
 
+  List<Customer> get _filteredCustomers {
+    if (_selectedFilter == 'ALL') return _customers;
+    return _customers.where((c) => c.status == _selectedFilter).toList();
+  }
+
   @override
   Widget build(BuildContext context) {
     return SystemOverlayWrapper(
@@ -55,31 +61,87 @@ class _MyCustomersPageState extends State<MyCustomersPage> {
             icon: const Icon(Icons.arrow_back_ios_new, size: 20),
             onPressed: () => Navigator.pop(context),
           ),
-        ),        body: RefreshIndicator(
-          onRefresh: _fetchCustomers,
-          color: Colors.black,
-          child: _isLoading 
-            ? const Center(child: CircularProgressIndicator(color: Colors.black))
-            : _customers.isEmpty 
-              ? _buildEmptyState()
-              : _buildCustomerList(),
+        ),
+        body: Column(
+          children: [
+            _buildFilterBar(),
+            Expanded(
+              child: RefreshIndicator(
+                onRefresh: _fetchCustomers,
+                color: Colors.black,
+                child: _isLoading 
+                  ? const Center(child: CircularProgressIndicator(color: Colors.black))
+                  : _filteredCustomers.isEmpty 
+                    ? _buildEmptyState()
+                    : _buildCustomerList(),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFilterBar() {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(24, 8, 24, 16),
+      child: Row(
+        children: [
+          _buildFilterChip('ALL'),
+          const SizedBox(width: 8),
+          _buildFilterChip('APPROVED'),
+          const SizedBox(width: 8),
+          _buildFilterChip('PENDING'),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFilterChip(String label) {
+    bool isSelected = _selectedFilter == label;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => setState(() => _selectedFilter = label),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          decoration: BoxDecoration(
+            color: isSelected ? Colors.black : Colors.black.withOpacity(0.03),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: isSelected ? Colors.black : Colors.black.withOpacity(0.05),
+            ),
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 0.5,
+              color: isSelected ? Colors.white : Colors.black45,
+            ),
+          ),
         ),
       ),
     );
   }
 
   Widget _buildEmptyState() {
+    String message = 'NO CUSTOMERS CREATED YET';
+    if (_selectedFilter != 'ALL') {
+      message = 'NO $_selectedFilter CUSTOMERS FOUND';
+    }
     return SingleChildScrollView(
       physics: const AlwaysScrollableScrollPhysics(),
       child: Container(
-        height: MediaQuery.of(context).size.height - 100,
+        height: MediaQuery.of(context).size.height - 200,
         alignment: Alignment.center,
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(Icons.people_outline_rounded, size: 64, color: Colors.black.withOpacity(0.1)),
             const SizedBox(height: 16),
-            const Text('NO CUSTOMERS CREATED YET', style: TextStyle(fontWeight: FontWeight.w900, color: Colors.black38)),
+            Text(message, style: const TextStyle(fontWeight: FontWeight.w900, color: Colors.black38)),
             const SizedBox(height: 8),
             const Text('PULL DOWN TO REFRESH', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.black12)),
           ],
@@ -89,13 +151,14 @@ class _MyCustomersPageState extends State<MyCustomersPage> {
   }
 
   Widget _buildCustomerList() {
+    final list = _filteredCustomers;
     return ListView.separated(
       physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.all(24),
-      itemCount: _customers.length,
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+      itemCount: list.length,
       separatorBuilder: (context, index) => const SizedBox(height: 16),
       itemBuilder: (context, index) {
-        final client = _customers[index];
+        final client = list[index];
         bool isApproved = client.status == 'APPROVED';
         
         return Container(
