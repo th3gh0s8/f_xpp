@@ -193,41 +193,114 @@ if (isset($_POST['insert_data_submit'])) {
 }
 
 // --- STRUCTURE CHANGE HANDLERS ---
+if (isset($_POST['create_table_submit'])) {
+    $target_db = $_POST['target_db'];
+    $conn->select_db($target_db);
+    $table_name = $conn->real_escape_string($_POST['new_table_name']);
+    
+    $cols_sql = [];
+    $pks = [];
+    foreach ($_POST['cols'] as $c) {
+        $name = $conn->real_escape_string($c['col_name']);
+        if (empty($name)) continue;
+        
+        $type = $c['col_type'];
+        $length = $c['col_length'];
+        $nullable = ($c['col_nullable'] == 'YES') ? 'NULL' : 'NOT NULL';
+        $default = $c['col_default'];
+        $extra = $c['col_extra']; 
+
+        $type_str = $type . ($length ? "($length)" : "");
+        $default_str = "";
+        if ($default !== '') {
+            if (strtoupper($default) == 'CURRENT_TIMESTAMP') $default_str = "DEFAULT CURRENT_TIMESTAMP";
+            else if (strtoupper($default) == 'NULL') $default_str = "DEFAULT NULL";
+            else $default_str = "DEFAULT '" . $conn->real_escape_string($default) . "'";
+        }
+        
+        $cols_sql[] = "`$name` $type_str $nullable $default_str $extra";
+        if (isset($c['is_pk']) && $c['is_pk'] == '1') {
+            $pks[] = "`$name`";
+        }
+    }
+    
+    if (!empty($pks)) {
+        $cols_sql[] = "PRIMARY KEY (" . implode(', ', $pks) . ")";
+    }
+    
+    $sql = "CREATE TABLE `$table_name` (" . implode(', ', $cols_sql) . ")";
+    if ($conn->query($sql)) {
+        header("Location: ?db=$target_db&table=$table_name&msg=Table created successfully&type=success"); exit;
+    } else { $msg = "Error: " . $conn->error; $msg_type = "danger"; }
+}
+
 if (isset($_POST['alter_column_submit'])) {
     $target_db = $_POST['target_db'];
     $target_table = $_POST['target_table'];
     $conn->select_db($target_db);
     
     $mode = $_POST['col_mode']; 
-    $old_name = $_POST['old_col_name'];
-    $new_name = $conn->real_escape_string($_POST['col_name']);
-    $type = $_POST['col_type'];
-    $length = $_POST['col_length'];
-    $nullable = ($_POST['col_nullable'] == 'YES') ? 'NULL' : 'NOT NULL';
-    $default = $_POST['col_default'];
-    $extra = $_POST['col_extra']; 
-
-    $type_str = $type . ($length ? "($length)" : "");
-    $default_str = "";
-    if ($default !== '') {
-        if (strtoupper($default) == 'CURRENT_TIMESTAMP') $default_str = "DEFAULT CURRENT_TIMESTAMP";
-        else if (strtoupper($default) == 'NULL') $default_str = "DEFAULT NULL";
-        else $default_str = "DEFAULT '" . $conn->real_escape_string($default) . "'";
-    }
-
-    if ($mode == 'add') {
-        $after = $_POST['col_after'];
-        $sql = "ALTER TABLE `$target_table` ADD COLUMN `$new_name` $type_str $nullable $default_str $extra";
-        if ($after == 'FIRST') $sql .= " FIRST";
-        elseif ($after) $sql .= " AFTER `$after`";
+    $cols_to_process = [];
+    
+    if (isset($_POST['cols']) && is_array($_POST['cols'])) {
+        $cols_to_process = $_POST['cols'];
     } else {
-        $sql = "ALTER TABLE `$target_table` CHANGE COLUMN `$old_name` `$new_name` $type_str $nullable $default_str $extra";
+        // Fallback for single column (Edit/Modify mode)
+        $cols_to_process[] = [
+            'col_name' => $_POST['col_name'],
+            'col_type' => $_POST['col_type'],
+            'col_length' => $_POST['col_length'],
+            'col_nullable' => $_POST['col_nullable'],
+            'col_default' => $_POST['col_default'],
+            'col_extra' => $_POST['col_extra'],
+            'col_after' => $_POST['col_after'] ?? '',
+            'old_col_name' => $_POST['old_col_name'] ?? ''
+        ];
     }
 
-    if ($conn->query($sql)) {
-        $msg = "Column " . ($mode == 'add' ? "added" : "modified") . " successfully.";
+    $success_count = 0;
+    $errors = [];
+
+    foreach ($cols_to_process as $c) {
+        $old_name = $conn->real_escape_string($c['old_col_name'] ?? '');
+        $new_name = $conn->real_escape_string($c['col_name']);
+        $type = $c['col_type'];
+        $length = $c['col_length'];
+        $nullable = ($c['col_nullable'] == 'YES') ? 'NULL' : 'NOT NULL';
+        $default = $c['col_default'];
+        $extra = $c['col_extra']; 
+
+        $type_str = $type . ($length ? "($length)" : "");
+        $default_str = "";
+        if ($default !== '') {
+            if (strtoupper($default) == 'CURRENT_TIMESTAMP') $default_str = "DEFAULT CURRENT_TIMESTAMP";
+            else if (strtoupper($default) == 'NULL') $default_str = "DEFAULT NULL";
+            else $default_str = "DEFAULT '" . $conn->real_escape_string($default) . "'";
+        }
+
+        if ($mode == 'add') {
+            $after = $c['col_after'];
+            $sql = "ALTER TABLE `$target_table` ADD COLUMN `$new_name` $type_str $nullable $default_str $extra";
+            if ($after == 'FIRST') $sql .= " FIRST";
+            elseif ($after) $sql .= " AFTER `$after`";
+        } else {
+            $sql = "ALTER TABLE `$target_table` CHANGE COLUMN `$old_name` `$new_name` $type_str $nullable $default_str $extra";
+        }
+
+        if ($conn->query($sql)) {
+            $success_count++;
+        } else {
+            $errors[] = "Col `$new_name`: " . $conn->error;
+        }
+    }
+
+    if (empty($errors)) {
+        $msg = "Column(s) " . ($mode == 'add' ? "added" : "modified") . " successfully.";
         $msg_type = "success";
-    } else { $msg = "Error: " . $conn->error; $msg_type = "danger"; }
+    } else {
+        $msg = "Processed $success_count. Errors: " . implode('; ', $errors);
+        $msg_type = "danger";
+    }
 }
 
 if (isset($_GET['action']) && $_GET['action'] === 'drop_column' && isset($_GET['db']) && isset($_GET['table']) && isset($_GET['column'])) {
@@ -636,6 +709,9 @@ function build_url($page, $limit, $search) {
         
         <div class="d-flex align-items-center">
             <?php if($selected_db): ?>
+                <button class="btn btn-success btn-sm me-2" onclick="showCreateTableModal()">
+                    <i class="fas fa-plus me-1"></i> New Table
+                </button>
                 <button class="btn btn-primary btn-sm me-2" data-bs-toggle="modal" data-bs-target="#joinModal">
                     <i class="fas fa-project-diagram me-1"></i> Join Builder
                 </button>
@@ -1134,75 +1210,27 @@ function build_url($page, $limit, $search) {
 </div>
 
 <div class="modal fade" id="columnModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
+    <div class="modal-dialog modal-xl">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="columnModalTitle">Add/Edit Column</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <form method="POST">
-                <div class="modal-body">
+                <div class="modal-body bg-light">
                     <input type="hidden" name="target_db" value="<?php echo $selected_db; ?>">
                     <input type="hidden" name="target_table" value="<?php echo $selected_table; ?>">
                     <input type="hidden" name="col_mode" id="col_mode" value="add">
                     <input type="hidden" name="old_col_name" id="old_col_name">
 
-                    <div class="row g-3">
-                        <div class="col-md-6">
-                            <label class="form-label small fw-bold">Column Name</label>
-                            <input type="text" name="col_name" id="col_name" class="form-control form-control-sm" required>
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label small fw-bold">Type</label>
-                            <select name="col_type" id="col_type" class="form-select form-select-sm">
-                                <option value="INT">INT</option>
-                                <option value="VARCHAR">VARCHAR</option>
-                                <option value="TEXT">TEXT</option>
-                                <option value="DATE">DATE</option>
-                                <option value="DATETIME">DATETIME</option>
-                                <option value="DECIMAL">DECIMAL</option>
-                                <option value="TINYINT">TINYINT</option>
-                                <option value="TIMESTAMP">TIMESTAMP</option>
-                                <option value="ENUM">ENUM</option>
-                            </select>
-                        </div>
-                        <div class="col-md-2" id="col_length_div">
-                            <label class="form-label small fw-bold">Length</label>
-                            <input type="text" name="col_length" id="col_length" class="form-control form-control-sm" placeholder="255">
-                        </div>
-                        <div class="col-md-6 d-none" id="enum_values_div">
-                            <label class="form-label small fw-bold">Enum Values</label>
-                            <div id="enum_inputs_container"></div>
-                            <button type="button" class="btn btn-outline-success btn-xs mt-1" onclick="addEnumInput()" style="font-size: 0.7rem; padding: 2px 5px;"><i class="fas fa-plus"></i> Add Value</button>
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label small fw-bold">Default</label>
-                            <input type="text" name="col_default" id="col_default" class="form-control form-control-sm" placeholder="NULL or value">
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label small fw-bold">Nullable</label>
-                            <select name="col_nullable" id="col_nullable" class="form-select form-select-sm">
-                                <option value="YES">NULL</option>
-                                <option value="NO">NOT NULL</option>
-                            </select>
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label small fw-bold">Extra</label>
-                            <select name="col_extra" id="col_extra" class="form-select form-select-sm">
-                                <option value="">None</option>
-                                <option value="AUTO_INCREMENT">AUTO_INCREMENT</option>
-                            </select>
-                        </div>
-                        <div id="div_col_after" class="col-md-12">
-                            <label class="form-label small fw-bold">After Column</label>
-                            <select name="col_after" id="col_after" class="form-select form-select-sm">
-                                <option value="">(At End)</option>
-                                <option value="FIRST">FIRST</option>
-                                <?php foreach($structure as $s): ?>
-                                    <option value="<?php echo $s['Field']; ?>">After <?php echo $s['Field']; ?></option>
-                                <?php endforeach; ?>
-                            </select>
-                        </div>
+                    <div id="column-definitions-container">
+                        <!-- Column definitions will be injected here -->
+                    </div>
+
+                    <div id="add-col-btn-container" class="text-center mt-3">
+                        <button type="button" class="btn btn-outline-primary btn-sm rounded-pill" onclick="addColumnDefinition()">
+                            <i class="fas fa-plus"></i> Add Another Column
+                        </button>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -1349,40 +1377,162 @@ function build_url($page, $limit, $search) {
         editModal.show();
     }
 
-    function addColumn() {
-        document.getElementById('columnModalTitle').innerText = 'Add Column to ' + currentTable;
-        document.getElementById('col_mode').value = 'add';
-        document.getElementById('old_col_name').value = '';
-        document.getElementById('col_name').value = '';
-        document.getElementById('col_length').value = '';
-        document.getElementById('col_default').value = '';
-        document.getElementById('col_extra').value = '';
-        document.getElementById('div_col_after').classList.remove('d-none');
+    let colDefCount = 0;
+    function addColumnDefinition(data = null) {
+        const container = document.getElementById('column-definitions-container');
+        const mode = document.getElementById('col_mode').value;
+        const index = colDefCount++;
         
-        document.getElementById('col_type').value = 'VARCHAR';
-        toggleEnumSection('VARCHAR');
+        const card = document.createElement('div');
+        card.className = 'card mb-3 shadow-sm border-start border-4 border-primary';
+        
+        let afterOptions = '<option value="">(At End)</option><option value="FIRST">FIRST</option>';
+        <?php foreach($structure as $s): ?>
+            afterOptions += `<option value="<?php echo $s['Field']; ?>">After <?php echo $s['Field']; ?></option>`;
+        <?php endforeach; ?>
 
-        const modal = new bootstrap.Modal(document.getElementById('columnModal'));
-        modal.show();
+        let html = `
+            <div class="card-body p-3">
+                <div class="row g-2">
+                    ${mode === 'add' ? `<div class="col-12 text-end"><button type="button" class="btn btn-sm text-danger p-0" onclick="this.closest('.card').remove()"><i class="fas fa-times"></i> Remove</button></div>` : ''}
+                    <div class="col-md-3">
+                        <label class="form-label small fw-bold">Column Name</label>
+                        <input type="text" name="cols[${index}][col_name]" class="form-control form-control-sm" required value="${data ? data.Field : ''}">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small fw-bold">Type</label>
+                        <select name="cols[${index}][col_type]" class="form-select form-select-sm col-type-select" onchange="toggleColEnum(this)">
+                            <option value="INT">INT</option>
+                            <option value="VARCHAR">VARCHAR</option>
+                            <option value="TEXT">TEXT</option>
+                            <option value="DATE">DATE</option>
+                            <option value="DATETIME">DATETIME</option>
+                            <option value="DECIMAL">DECIMAL</option>
+                            <option value="TINYINT">TINYINT</option>
+                            <option value="TIMESTAMP">TIMESTAMP</option>
+                            <option value="ENUM">ENUM</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2 length-div">
+                        <label class="form-label small fw-bold">Length</label>
+                        <input type="text" name="cols[${index}][col_length]" class="form-control form-control-sm length-input" placeholder="255">
+                    </div>
+                    <div class="col-md-5 enum-div d-none">
+                         <label class="form-label small fw-bold">Enum Values</label>
+                         <div class="enum-inputs-container border rounded p-2 mb-2"></div>
+                         <button type="button" class="btn btn-outline-success btn-sm w-100" onclick="addEnumField(this)"><i class="fas fa-plus"></i> Add Value</button>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small fw-bold">Default</label>
+                        <input type="text" name="cols[${index}][col_default]" class="form-control form-control-sm" placeholder="NULL" value="${data ? (data.Default || '') : ''}">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small fw-bold">Nullable</label>
+                        <select name="cols[${index}][col_nullable]" class="form-select form-select-sm">
+                            <option value="YES">NULL</option>
+                            <option value="NO">NOT NULL</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small fw-bold">Extra</label>
+                        <select name="cols[${index}][col_extra]" class="form-select form-select-sm">
+                            <option value="">None</option>
+                            <option value="AUTO_INCREMENT">AUTO_INCREMENT</option>
+                        </select>
+                    </div>
+                    ${mode === 'add' ? `
+                    <div class="col-md-3">
+                        <label class="form-label small fw-bold">After Column</label>
+                        <select name="cols[${index}][col_after]" class="form-select form-select-sm">
+                            ${afterOptions}
+                        </select>
+                    </div>` : `<input type="hidden" name="cols[${index}][old_col_name]" value="${data ? data.Field : ''}">`}
+                </div>
+            </div>`;
+        
+        card.innerHTML = html;
+        container.appendChild(card);
+        
+        if (data) {
+            const row = card.querySelector('.row');
+            let typeInfo = data.Type;
+            let typeName = '', typeLen = '';
+            let match = typeInfo.match(/^([a-z]+)(?:\((.*)\))?/i);
+            if (match) { typeName = match[1].toUpperCase(); typeLen = match[2] || ''; } else { typeName = typeInfo.toUpperCase(); }
+            
+            const typeSelect = row.querySelector('.col-type-select');
+            typeSelect.value = typeName;
+            
+            // Trigger toggleColEnum logic manually to show/hide sections
+            const lengthDiv = row.querySelector('.length-div');
+            const enumDiv = row.querySelector('.enum-div');
+            if (typeName === 'ENUM') {
+                lengthDiv.classList.add('d-none');
+                enumDiv.classList.remove('d-none');
+                
+                const enumContainer = row.querySelector('.enum-inputs-container');
+                let values = typeLen.match(/'([^']*)'/g);
+                if (values) {
+                    values.forEach(v => {
+                        let cleanVal = v.replace(/^'|'$/g, '').replace(/''/g, "'");
+                        addEnumField(enumContainer, cleanVal);
+                    });
+                }
+            } else {
+                lengthDiv.classList.remove('d-none');
+                enumDiv.classList.add('d-none');
+                row.querySelector('.length-input').value = typeLen;
+            }
+            
+            row.querySelector('select[name*="[col_nullable]"]').value = data.Null;
+            row.querySelector('select[name*="[col_extra]"]').value = data.Extra.toUpperCase() === 'AUTO_INCREMENT' ? 'AUTO_INCREMENT' : '';
+        }
     }
 
-    function toggleEnumSection(type) {
-        const lengthDiv = document.getElementById('col_length_div');
-        const enumDiv = document.getElementById('enum_values_div');
-        if (type === 'ENUM') {
+    function toggleColEnum(select) {
+        const row = select.closest('.row');
+        const lengthDiv = row.querySelector('.length-div');
+        const enumDiv = row.querySelector('.enum-div');
+        if (select.value === 'ENUM') {
             lengthDiv.classList.add('d-none');
             enumDiv.classList.remove('d-none');
-            if (document.getElementById('enum_inputs_container').children.length === 0) {
-                addEnumInput();
-            }
         } else {
             lengthDiv.classList.remove('d-none');
             enumDiv.classList.add('d-none');
         }
     }
 
-    function addEnumInput(val = '') {
-        const container = document.getElementById('enum_inputs_container');
+    function addColumn() {
+        document.getElementById('columnModalTitle').innerText = 'Add Column(s) to ' + currentTable;
+        document.getElementById('col_mode').value = 'add';
+        document.getElementById('column-definitions-container').innerHTML = '';
+        document.getElementById('add-col-btn-container').classList.remove('d-none');
+        colDefCount = 0;
+        addColumnDefinition();
+        const modal = new bootstrap.Modal(document.getElementById('columnModal'));
+        modal.show();
+    }
+
+    function editColumn(st) {
+        document.getElementById('columnModalTitle').innerText = 'Edit Column: ' + st.Field;
+        document.getElementById('col_mode').value = 'modify';
+        document.getElementById('column-definitions-container').innerHTML = '';
+        document.getElementById('add-col-btn-container').classList.add('d-none');
+        colDefCount = 0;
+        addColumnDefinition(st);
+        const modal = new bootstrap.Modal(document.getElementById('columnModal'));
+        modal.show();
+    }
+
+    function addEnumField(btn, val = '') {
+        // Look for the sibling container specifically
+        let container;
+        if (btn.classList.contains('enum-inputs-container')) {
+            container = btn;
+        } else {
+            container = btn.parentElement.querySelector('.enum-inputs-container');
+        }
+        
         const div = document.createElement('div');
         div.className = 'input-group input-group-sm mb-1';
         div.innerHTML = `
@@ -1392,99 +1542,29 @@ function build_url($page, $limit, $search) {
         container.appendChild(div);
     }
 
-    function populateEnumInputs(valStr) {
-        const container = document.getElementById('enum_inputs_container');
-        container.innerHTML = '';
-        
-        // valStr is e.g. 'a','b','c'
-        // Regex to split by comma while respecting quotes
-        let values = valStr.match(/'([^']*)'/g);
-        if (values) {
-            values.forEach(v => {
-                let cleanVal = v.replace(/^'|'$/g, '').replace(/''/g, "'");
-                addEnumInput(cleanVal);
-            });
-        } else if (valStr) {
-            valStr.split(',').forEach(v => addEnumInput(v.trim()));
-        }
-        
-        if (container.children.length === 0) addEnumInput();
-    }
-
-    // Handle Type Change
-    document.getElementById('col_type').addEventListener('change', function() {
-        toggleEnumSection(this.value);
-    });
-
-    // Consolidate ENUM values on submit
-    document.querySelector('#columnModal form').addEventListener('submit', function(e) {
-        const type = document.getElementById('col_type').value;
-        if (type === 'ENUM') {
-            const inputs = document.querySelectorAll('.enum-val-input');
-            let vals = [];
-            inputs.forEach(input => {
-                let v = input.value.trim();
-                if (v !== '') {
-                    // Escape single quotes for SQL: ' becomes ''
-                    vals.push("'" + v.replace(/'/g, "''") + "'");
+    // Handle Enum values consolidation before submit
+    document.querySelectorAll('#columnModal form, #createTableModal form').forEach(form => {
+        form.addEventListener('submit', function(e) {
+            const cards = this.querySelectorAll('.card');
+            cards.forEach(card => {
+                const typeSelect = card.querySelector('.col-type-select');
+                if (typeSelect && typeSelect.value === 'ENUM') {
+                    const inputs = card.querySelectorAll('.enum-val-input');
+                    const lengthInput = card.querySelector('.length-input');
+                    if (inputs && lengthInput) {
+                        let vals = [];
+                        inputs.forEach(input => {
+                            let v = input.value.trim();
+                            if (v !== '') {
+                                vals.push("'" + v.replace(/'/g, "''") + "'");
+                            }
+                        });
+                        lengthInput.value = vals.join(',');
+                    }
                 }
             });
-            document.getElementById('col_length').value = vals.join(',');
-        }
+        });
     });
-
-    function editColumn(st) {
-        document.getElementById('columnModalTitle').innerText = 'Edit Column: ' + st.Field;
-        document.getElementById('col_mode').value = 'modify';
-        document.getElementById('old_col_name').value = st.Field;
-        document.getElementById('col_name').value = st.Field;
-        
-        let typeInfo = st.Type;
-        let typeName = '';
-        let typeLen = '';
-        
-        // Robust Parse: type(length/values) extra_stuff
-        let match = typeInfo.match(/^([a-z]+)(?:\((.*)\))?/i);
-        if (match) {
-            typeName = match[1].toUpperCase();
-            typeLen = match[2] || '';
-        } else {
-            typeName = typeInfo.toUpperCase();
-        }
-
-        // Ensure type exists in dropdown
-        const typeSelect = document.getElementById('col_type');
-        let typeExists = false;
-        for (let i = 0; i < typeSelect.options.length; i++) {
-            if (typeSelect.options[i].value === typeName) {
-                typeExists = true;
-                break;
-            }
-        }
-        
-        if (!typeExists) {
-            let opt = document.createElement('option');
-            opt.value = typeName;
-            opt.text = typeName;
-            typeSelect.add(opt);
-        }
-        
-        typeSelect.value = typeName;
-        document.getElementById('col_length').value = typeLen;
-
-        toggleEnumSection(typeName);
-        if (typeName === 'ENUM') {
-            populateEnumInputs(typeLen);
-        }
-        
-        document.getElementById('col_nullable').value = st.Null;
-        document.getElementById('col_default').value = st.Default || '';
-        document.getElementById('col_extra').value = st.Extra.toUpperCase() === 'AUTO_INCREMENT' ? 'AUTO_INCREMENT' : '';
-        document.getElementById('div_col_after').classList.add('d-none');
-
-        const modal = new bootstrap.Modal(document.getElementById('columnModal'));
-        modal.show();
-    }
 
     const structureSql = <?php echo json_encode($create_table_sql); ?>;
     function toggleView(view) {
@@ -1507,7 +1587,7 @@ function build_url($page, $limit, $search) {
             dataDiv.classList.add('d-none');
             structDiv.classList.remove('d-none');
             btnData.classList.remove('active');
-            btnStruct.classList.active('active');
+            btnStruct.classList.add('active');
             btnAddCol.classList.remove('d-none');
             btnInsData.classList.add('d-none');
             if(sqlTextarea) sqlTextarea.value = structureSql;
@@ -1672,6 +1752,96 @@ function build_url($page, $limit, $search) {
         textArea.value = query;
         textArea.focus();
     }
+    function showCreateTableModal() {
+        const container = document.getElementById('create-table-cols-container');
+        container.innerHTML = '';
+        colDefCount = 0;
+        addCreateTableCol();
+        new bootstrap.Modal(document.getElementById('createTableModal')).show();
+    }
+
+    function addCreateTableCol() {
+        const container = document.getElementById('create-table-cols-container');
+        const index = colDefCount++;
+        const card = document.createElement('div');
+        card.className = 'card mb-3 shadow-sm border-start border-4 border-primary';
+        card.innerHTML = `
+            <div class="card-body p-3">
+                <div class="row g-2">
+                    <div class="col-12 text-end"><button type="button" class="btn btn-sm text-danger p-0" onclick="this.closest('.card').remove()"><i class="fas fa-times"></i> Remove</button></div>
+                    <div class="col-md-3">
+                        <label class="form-label small fw-bold">Name</label>
+                        <input type="text" name="cols[${index}][col_name]" class="form-control form-control-sm" required>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small fw-bold">Type</label>
+                        <select name="cols[${index}][col_type]" class="form-select form-select-sm col-type-select" onchange="toggleColEnum(this)">
+                            <option value="INT">INT</option>
+                            <option value="VARCHAR">VARCHAR</option>
+                            <option value="TEXT">TEXT</option>
+                            <option value="ENUM">ENUM</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2 length-div">
+                        <label class="form-label small fw-bold">Length</label>
+                        <input type="text" name="cols[${index}][col_length]" class="form-control form-control-sm length-input" placeholder="255">
+                    </div>
+                    <div class="col-md-5 enum-div d-none">
+                         <label class="form-label small fw-bold">Enum Values</label>
+                         <div class="enum-inputs-container border rounded p-2 mb-2"></div>
+                         <button type="button" class="btn btn-outline-success btn-sm w-100" onclick="addEnumField(this)"><i class="fas fa-plus"></i> Add Value</button>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small fw-bold">Default</label>
+                        <input type="text" name="cols[${index}][col_default]" class="form-control form-control-sm" placeholder="NULL">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small fw-bold">Nullable</label>
+                        <select name="cols[${index}][col_nullable]" class="form-select form-select-sm">
+                            <option value="YES">NULL</option>
+                            <option value="NO">NOT NULL</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small fw-bold">Primary Key</label>
+                        <select name="cols[${index}][is_pk]" class="form-select form-select-sm">
+                            <option value="0">No</option>
+                            <option value="1">Yes</option>
+                        </select>
+                    </div>
+                </div>
+            </div>`;
+        container.appendChild(card);
+    }
 </script>
+<div class="modal fade" id="createTableModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Create New Table in `<?php echo $selected_db; ?>`</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST">
+                <div class="modal-body bg-light">
+                    <input type="hidden" name="target_db" value="<?php echo $selected_db; ?>">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Table Name</label>
+                        <input type="text" name="new_table_name" class="form-control" required>
+                    </div>
+                    <div id="create-table-cols-container"></div>
+                    <div class="text-center mt-3">
+                        <button type="button" class="btn btn-outline-primary btn-sm rounded-pill" onclick="addCreateTableCol()">
+                            <i class="fas fa-plus"></i> Add Column
+                        </button>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="submit" name="create_table_submit" class="btn btn-success">Create Table</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 </body>
 </html>
