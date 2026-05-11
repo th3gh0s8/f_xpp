@@ -4,10 +4,28 @@ import 'package:http/http.dart' as http;
 import '../models/partner.dart';
 import '../models/invoice.dart';
 import '../models/customer.dart';
+import '../models/resell_package.dart';
 
 class ApiService {
   // Production URL
   static const String baseUrl = 'https://powersoftt.com/xPowerPartners';
+
+  Future<List<ResellPackage>> getPackages() async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/get_packages.php?t=${DateTime.now().millisecondsSinceEpoch}'),
+      );
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data['success'] == true) {
+          return (data['data'] as List).map((i) => ResellPackage.fromJson(i)).toList();
+        }
+      }
+    } catch (e) {
+      print('API Error (getPackages): $e');
+    }
+    return [];
+  }
 
   Future<Partner?> getPartner(String mobileNo) async {
     String cleanNo = mobileNo.replaceAll(RegExp(r'\D'), '');
@@ -248,6 +266,8 @@ class ApiService {
         'com_field': customer.companyField,
         'remarks': customer.remarks,
         'additional_features': customer.additionalFeatures,
+        'reference': customer.reference,
+        'preferred_lang': customer.preferredLang,
       });
 
       request.files.add(await http.MultipartFile.fromPath(

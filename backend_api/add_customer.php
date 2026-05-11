@@ -57,13 +57,15 @@ $com_area = $_POST['com_area'] ?? '';
 $com_field = $_POST['com_field'] ?? '';
 $remarks = $_POST['remarks'] ?? '-';
 $additional_features = $_POST['additional_features'] ?? '-';
+$reference = $_POST['reference'] ?? '';
+$preferred_lang = $_POST['preferred_lang'] ?? 'English';
 
-$sql = "INSERT INTO new_clients (partnerTb, com_name, com_address, com_number, admin_name, admin_number, com_area, com_field, remarks, additional_features, status, rDateTime)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Pending', NOW())";
+$sql = "INSERT INTO new_clients (partnerTb, com_name, com_address, com_number, admin_name, admin_number, com_area, com_field, remarks, additional_features, status, rDateTime, reference, preferred_lang)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Pending', NOW(), ?, ?)";
 
 $stmt = $conn->prepare($sql);
 // We bind as 's' (string) because partnerTb might be an ID or a mobile number
-$stmt->bind_param("ssssssssss", $partner_identifier, $com_name, $com_address, $com_number, $admin_name, $admin_number, $com_area, $com_field, $remarks, $additional_features);
+$stmt->bind_param("ssssssssssss", $partner_identifier, $com_name, $com_address, $com_number, $admin_name, $admin_number, $com_area, $com_field, $remarks, $additional_features, $reference, $preferred_lang);
 
 if ($stmt->execute()) {
     echo json_encode(['success' => true, 'message' => 'Customer registered successfully']);

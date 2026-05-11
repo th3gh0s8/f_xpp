@@ -26,6 +26,25 @@ class _AddCustomerPageState extends State<AddCustomerPage> {
   final TextEditingController _comFieldController = TextEditingController();
   final TextEditingController _remarksController = TextEditingController();
   final TextEditingController _featuresController = TextEditingController();
+  String? _selectedReference;
+  String _selectedLang = 'English';
+
+  final List<String> _langOptions = [
+    'English',
+    'Tamil',
+    'Sinhala',
+    'Arabic',
+    'Hindi'
+  ];
+
+  final List<String> _referenceOptions = [
+    'From a Friend',
+    'Social Media Promotion',
+    'Customer Called me',
+    'From Cold Calling',
+    'From Visiting',
+    'From an Existing Client'
+  ];
 
   File? _paymentSlip;
   String? _fileName;
@@ -89,6 +108,8 @@ class _AddCustomerPageState extends State<AddCustomerPage> {
         companyField: _comFieldController.text,
         remarks: _remarksController.text,
         additionalFeatures: _featuresController.text,
+        reference: _selectedReference ?? '',
+        preferredLang: _selectedLang,
       );
 
       // Pass the phone number directly to the API service
@@ -166,6 +187,10 @@ class _AddCustomerPageState extends State<AddCustomerPage> {
                   _buildTextField(_remarksController, 'REMARKS', Icons.notes, maxLines: 3, isOptional: true),
                   const SizedBox(height: 16),
                   _buildTextField(_featuresController, 'ADDITIONAL FEATURES', Icons.add_box, maxLines: 2, isOptional: true),
+                  const SizedBox(height: 16),
+                  _buildLanguageDropdown(),
+                  const SizedBox(height: 16),
+                  _buildReferenceDropdown(),
                   
                   const SizedBox(height: 32),
                   _buildSectionTitle('PAYMENT SLIP'),
@@ -295,6 +320,58 @@ class _AddCustomerPageState extends State<AddCustomerPage> {
           style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: 1),
         ),
       ),
+    );
+  }
+
+  Widget _buildLanguageDropdown() {
+    return DropdownButtonFormField<String>(
+      value: _selectedLang,
+      style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 14, color: Colors.black),
+      decoration: InputDecoration(
+        labelText: 'PREFERRED LANGUAGE',
+        labelStyle: TextStyle(color: Colors.black.withOpacity(0.4), fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 1),
+        prefixIcon: const Icon(Icons.language, size: 18, color: Colors.black),
+        filled: true,
+        fillColor: Colors.black.withOpacity(0.03),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      ),
+      items: _langOptions.map((String value) {
+        return DropdownMenuItem<String>(
+          value: value,
+          child: Text(value.toUpperCase(), style: const TextStyle(fontSize: 11)),
+        );
+      }).toList(),
+      onChanged: (newValue) {
+        if (newValue != null) setState(() => _selectedLang = newValue);
+      },
+      validator: (value) => value == null || value.isEmpty ? 'REQUIRED' : null,
+    );
+  }
+
+  Widget _buildReferenceDropdown() {
+    return DropdownButtonFormField<String>(
+      value: _selectedReference,
+      style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 14, color: Colors.black),
+      decoration: InputDecoration(
+        labelText: 'HOW DID YOU GET TO KNOW THIS CLIENT?',
+        labelStyle: TextStyle(color: Colors.black.withOpacity(0.4), fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 1),
+        prefixIcon: const Icon(Icons.help_outline, size: 18, color: Colors.black),
+        filled: true,
+        fillColor: Colors.black.withOpacity(0.03),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      ),
+      items: _referenceOptions.map((String value) {
+        return DropdownMenuItem<String>(
+          value: value,
+          child: Text(value.toUpperCase(), style: const TextStyle(fontSize: 11)),
+        );
+      }).toList(),
+      onChanged: (newValue) {
+        setState(() => _selectedReference = newValue);
+      },
+      validator: (value) => value == null || value.isEmpty ? 'REQUIRED' : null,
     );
   }
 
