@@ -13,6 +13,8 @@ class Customer {
   final String status;
   final String reference;
   final String preferredLang;
+  final String? packageName;
+  final String? additionalPackages;
 
   Customer({
     this.id,
@@ -29,6 +31,8 @@ class Customer {
     this.status = 'Pending',
     this.reference = '',
     this.preferredLang = 'English',
+    this.packageName,
+    this.additionalPackages,
   });
 
   factory Customer.fromJson(Map<String, dynamic> json) {
@@ -51,6 +55,8 @@ class Customer {
       status: (json['display_status'] ?? json['status'] ?? 'PENDING').toString().toUpperCase(),
       reference: safeString(json['reference']),
       preferredLang: safeString(json['preferred_lang']).isEmpty ? 'English' : safeString(json['preferred_lang']),
+      packageName: safeString(json['package_name']),
+      additionalPackages: safeString(json['additional_packages']),
     );
   }
 
@@ -68,6 +74,8 @@ class Customer {
       'additional_features': additionalFeatures,
       'reference': reference,
       'preferred_lang': preferredLang,
+      'package_name': packageName,
+      'additional_packages': additionalPackages,
     };
   }
 }

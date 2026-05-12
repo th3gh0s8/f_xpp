@@ -324,6 +324,8 @@ class _AddCustomerPageState extends State<AddCustomerPage> {
         additionalFeatures: _formatFeaturesString(),
         reference: _selectedReference ?? '',
         preferredLang: _selectedLang,
+        packageName: _selectedPackage?.packageName,
+        additionalPackages: _selectedModules.map((m) => m.moduleName).join(','),
       );
 
       // Pass the phone number directly to the API service

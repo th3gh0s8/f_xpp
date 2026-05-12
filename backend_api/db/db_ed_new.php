@@ -12,13 +12,20 @@ if (!isset($_SESSION['authenticated']) || $_SESSION['authenticated'] !== true) {
 
 include('db_config.php');
 
+// Disable mysqli exceptions for backward compatibility and to prevent 500 errors on SQL failures
+if (defined('MYSQLI_REPORT_OFF')) {
+    mysqli_report(MYSQLI_REPORT_OFF);
+}
+
 // $conn = $mysqli;
 
-// if (!isset($conn) || $conn->connect_error) {
-//     $host = 'localhost'; $user = 'root'; $pass = ''; 
-//     $conn = new mysqli($host, $user, $pass);
-//     if ($conn->connect_error) die("Database connection failed: " . $conn->connect_error);
-// }
+if (!isset($conn) || $conn->connect_error) {
+    if (isset($mysqli)) {
+        $conn = $mysqli;
+    } else {
+        // Fallback or handle error
+    }
+}
 
 // --- NEW HANDLERS ---
 $msg = ''; 
@@ -57,47 +64,56 @@ if (isset($_GET['action']) && isset($_GET['db']) && isset($_GET['table'])) {
 
 // 3. Delete Row
 if (isset($_POST['delete_row'])) {
-    $conn->select_db($_POST['db']);
-    $tbl = $conn->real_escape_string($_POST['table']);
-    $pk_col = $_POST['pk_col'];
-    $pk_val = $conn->real_escape_string($_POST['pk_val']);
-    if ($conn->query("DELETE FROM `$tbl` WHERE `$pk_col` = '$pk_val'")) {
+    if (isset($_POST['db'])) $conn->select_db($_POST['db']);
+    $tbl = $conn->real_escape_string($_POST['table'] ?? '');
+    $pk_col = $conn->real_escape_string($_POST['pk_col'] ?? '');
+    $pk_val = $conn->real_escape_string($_POST['pk_val'] ?? '');
+    if ($tbl && $pk_col && $conn->query("DELETE FROM `$tbl` WHERE `$pk_col` = '$pk_val'")) {
         $msg = "Row deleted successfully."; $msg_type = "success";
     } else { $msg = "Error: " . $conn->error; $msg_type = "danger"; }
 }
 
 // 4. Batch Delete
 if (isset($_POST['batch_delete'])) {
-    $conn->select_db($_POST['db']);
-    $tbl = $conn->real_escape_string($_POST['table']);
-    $pk_col = $_POST['pk_col'];
-    $ids = $_POST['selected_ids'];
+    if (isset($_POST['db'])) $conn->select_db($_POST['db']);
+    $tbl = $conn->real_escape_string($_POST['table'] ?? '');
+    $pk_col = $conn->real_escape_string($_POST['pk_col'] ?? '');
+    $ids = $_POST['selected_ids'] ?? [];
     
-    $escaped_ids = array_map(function($id) use ($conn) {
-        return "'" . $conn->real_escape_string($id) . "'";
-    }, $ids);
-    
-    $sql_batch = "DELETE FROM `$tbl` WHERE `$pk_col` IN (" . implode(',', $escaped_ids) . ")";
-    if ($conn->query($sql_batch)) {
-        $msg = "Successfully deleted " . count($ids) . " rows."; $msg_type = "success";
-    } else { $msg = "Error: " . $conn->error; $msg_type = "danger"; }
+    if (!empty($ids) && is_array($ids)) {
+        $escaped_ids = array_map(function($id) use ($conn) {
+            return "'" . $conn->real_escape_string($id) . "'";
+        }, $ids);
+        
+        $sql_batch = "DELETE FROM `$tbl` WHERE `$pk_col` IN (" . implode(',', $escaped_ids) . ")";
+        if ($conn->query($sql_batch)) {
+            $msg = "Successfully deleted " . count($ids) . " rows."; $msg_type = "success";
+        } else { $msg = "Error: " . $conn->error; $msg_type = "danger"; }
+    } else {
+        $msg = "No rows selected."; $msg_type = "warning";
+    }
 }
 
 // 5. Update Row
 if (isset($_POST['update_row_submit'])) {
-    $conn->select_db($_POST['target_db']);
-    $tbl = $conn->real_escape_string($_POST['target_table']);
-    $pk_col = $_POST['pk_col'];
-    $pk_val = $conn->real_escape_string($_POST['pk_val']);
+    if (isset($_POST['target_db'])) $conn->select_db($_POST['target_db']);
+    $tbl = $conn->real_escape_string($_POST['target_table'] ?? '');
+    $pk_col = $conn->real_escape_string($_POST['pk_col'] ?? '');
+    $pk_val = $conn->real_escape_string($_POST['pk_val'] ?? '');
     
-    $sets = [];
-    foreach ($_POST['upd_data'] as $col => $val) {
-        $sets[] = "`" . $conn->real_escape_string($col) . "` = '" . $conn->real_escape_string($val) . "'";
+    $upd_data = $_POST['upd_data'] ?? [];
+    if (!empty($upd_data) && is_array($upd_data)) {
+        $sets = [];
+        foreach ($upd_data as $col => $val) {
+            $sets[] = "`" . $conn->real_escape_string($col) . "` = " . ($val === null ? "NULL" : "'" . $conn->real_escape_string($val) . "'");
+        }
+        $sql_upd = "UPDATE `$tbl` SET " . implode(', ', $sets) . " WHERE `$pk_col` = '$pk_val'";
+        if ($conn->query($sql_upd)) {
+            $msg = "Row updated successfully."; $msg_type = "success";
+        } else { $msg = "Error: " . $conn->error; $msg_type = "danger"; }
+    } else {
+        $msg = "No data to update."; $msg_type = "warning";
     }
-    $sql_upd = "UPDATE `$tbl` SET " . implode(', ', $sets) . " WHERE `$pk_col` = '$pk_val'";
-    if ($conn->query($sql_upd)) {
-        $msg = "Row updated successfully."; $msg_type = "success";
-    } else { $msg = "Error: " . $conn->error; $msg_type = "danger"; }
 }
 
 // 5. Import SQL
@@ -129,13 +145,19 @@ if (isset($_GET['action']) && $_GET['action'] === 'export' && isset($_GET['db'])
     
     foreach ($tables as $tbl) {
         $res = $conn->query("SHOW CREATE TABLE `$tbl`");
-        $row = $res->fetch_row();
-        echo "\n\n" . $row[1] . ";\n\n";
+        if ($res instanceof mysqli_result) {
+            $row = $res->fetch_row();
+            echo "\n\n" . $row[1] . ";\n\n";
+        }
         
         $res = $conn->query("SELECT * FROM `$tbl`");
-        while ($row = $res->fetch_assoc()) {
-            $vals = array_map([$conn, 'real_escape_string'], array_values($row));
-            echo "INSERT INTO `$tbl` VALUES ('" . implode("', '", $vals) . "');\n";
+        if ($res instanceof mysqli_result) {
+            while ($row = $res->fetch_assoc()) {
+                $vals = array_map(function($v) use ($conn) {
+                    return $v === null ? "NULL" : "'" . $conn->real_escape_string($v) . "'";
+                }, array_values($row));
+                echo "INSERT INTO `$tbl` VALUES (" . implode(", ", $vals) . ");\n";
+            }
         }
     }
     exit;
@@ -156,30 +178,35 @@ $is_custom_query = false;
 $sql_query_input = "";
 
 if (isset($_POST['insert_data_submit'])) {
-    $target_db = $_POST['target_db'];
-    $target_table = $_POST['target_table'];
-    $conn->select_db($target_db);
+    $target_db = $_POST['target_db'] ?? '';
+    $target_table = $_POST['target_table'] ?? '';
+    if ($target_db) $conn->select_db($target_db);
     
-    $insert_rows = $_POST['ins_data'];
+    $insert_rows = $_POST['ins_data'] ?? [];
     $success_count = 0;
     $error_count = 0;
     $last_error = '';
 
-    foreach ($insert_rows as $row_data) {
-        $cols = [];
-        $vals = [];
-        foreach ($row_data as $col => $val) {
-            $cols[] = "`" . $conn->real_escape_string($col) . "`";
-            $vals[] = "'" . $conn->real_escape_string($val) . "'";
-        }
-        
-        $sql_ins = "INSERT INTO `$target_table` (" . implode(', ', $cols) . ") VALUES (" . implode(', ', $vals) . ")";
-        
-        if ($conn->query($sql_ins)) {
-            $success_count++;
-        } else {
-            $error_count++;
-            $last_error = $conn->error;
+    if (is_array($insert_rows)) {
+        foreach ($insert_rows as $row_data) {
+            if (!is_array($row_data)) continue;
+            $cols = [];
+            $vals = [];
+            foreach ($row_data as $col => $val) {
+                $cols[] = "`" . $conn->real_escape_string($col) . "`";
+                $vals[] = ($val === null || $val === '') ? "NULL" : "'" . $conn->real_escape_string($val) . "'";
+            }
+            
+            if (empty($cols)) continue;
+
+            $sql_ins = "INSERT INTO `$target_table` (" . implode(', ', $cols) . ") VALUES (" . implode(', ', $vals) . ")";
+            
+            if ($conn->query($sql_ins)) {
+                $success_count++;
+            } else {
+                $error_count++;
+                $last_error = $conn->error;
+            }
         }
     }
 
@@ -370,9 +397,20 @@ $server_stats = [];
 if (!$selected_db) {
     $server_stats['version'] = $conn->server_info;
     $res = $conn->query("SHOW STATUS LIKE 'Uptime'");
-    $server_stats['uptime'] = ($res) ? $res->fetch_assoc()['Value'] : 0;
+    if ($res instanceof mysqli_result) {
+        $row = $res->fetch_assoc();
+        $server_stats['uptime'] = $row['Value'] ?? 0;
+    } else {
+        $server_stats['uptime'] = 0;
+    }
+    
     $res = $conn->query("SHOW STATUS LIKE 'Threads_connected'");
-    $server_stats['threads'] = ($res) ? $res->fetch_assoc()['Value'] : 0;
+    if ($res instanceof mysqli_result) {
+        $row = $res->fetch_assoc();
+        $server_stats['threads'] = $row['Value'] ?? 0;
+    } else {
+        $server_stats['threads'] = 0;
+    }
 }
 
 $table_list = [];
@@ -416,7 +454,7 @@ if ($selected_db) {
     if ($is_custom_query && $sql_query_input) {
         try {
             $res = $conn->query($sql_query_input);
-            if ($res) {
+            if ($res instanceof mysqli_result) {
                 $finfo = $res->fetch_fields();
                 foreach ($finfo as $val) $columns[] = ['Field' => $val->name, 'Type' => $val->type];
                 while ($row = $res->fetch_assoc()) $rows[] = $row;
@@ -428,13 +466,15 @@ if ($selected_db) {
     elseif ($selected_table) {
 
         $res = $conn->query("DESCRIBE `$selected_table`");
-        while ($row = $res->fetch_assoc()) { 
-            $structure[] = $row; 
-            if ($row['Key'] == 'PRI') $primary_key = $row['Field'];
+        if ($res instanceof mysqli_result) {
+            while ($row = $res->fetch_assoc()) { 
+                $structure[] = $row; 
+                if ($row['Key'] == 'PRI') $primary_key = $row['Field'];
+            }
         }
 
         $res_cr = $conn->query("SHOW CREATE TABLE `$selected_table`");
-        if($res_cr) {
+        if ($res_cr instanceof mysqli_result) {
             $row_cr = $res_cr->fetch_row();
             $create_table_sql = isset($row_cr[1]) ? $row_cr[1] : '';
         }
@@ -519,7 +559,7 @@ if ($selected_db) {
         }
 
         $c_res = $conn->query("SELECT COUNT(*) as total FROM `$selected_table` $where_sql");
-        if($c_res) {
+        if ($c_res instanceof mysqli_result) {
             $c_row = $c_res->fetch_assoc();
             $total_rows = $c_row['total'];
             $total_pages = ceil($total_rows / $limit);
@@ -529,7 +569,7 @@ if ($selected_db) {
         if(!$is_custom_query) $sql_query_input = $final_sql; 
         
         $res = $conn->query($final_sql);
-        if($res) {
+        if ($res instanceof mysqli_result) {
             foreach ($structure as $st) $columns[] = $st;
             while ($row = $res->fetch_assoc()) $rows[] = $row;
         }

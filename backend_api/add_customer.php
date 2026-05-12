@@ -25,12 +25,12 @@ if (!empty($partner_mobile)) {
     $p_res = $stmtP->get_result()->fetch_assoc();
     if ($p_res && isset($p_res['ID'])) {
         $partner_identifier = $p_res['ID']; // Use integer ID if available
+    } else {
+        die(json_encode(['success' => false, 'message' => 'Partner not found']));
     }
     $stmtP->close();
-}
-
-if (empty($partner_identifier)) {
-    die(json_encode(['success' => false, 'message' => 'Partner identifier missing']));
+} else {
+    die(json_encode(['success' => false, 'message' => 'Partner identifier empty']));
 }
 
 // 2. Handle File Upload
@@ -59,13 +59,15 @@ $remarks = $_POST['remarks'] ?? '-';
 $additional_features = $_POST['additional_features'] ?? '-';
 $reference = $_POST['reference'] ?? '';
 $preferred_lang = $_POST['preferred_lang'] ?? 'English';
+$package_name = $_POST['package_name'] ?? NULL;
+$additional_packages = $_POST['additional_packages'] ?? NULL;
 
-$sql = "INSERT INTO new_clients (partnerTb, com_name, com_address, com_number, admin_name, admin_number, com_area, com_field, remarks, additional_features, status, rDateTime, reference, preferred_lang)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Pending', NOW(), ?, ?)";
+$sql = "INSERT INTO new_clients (partnerTb, com_name, com_address, com_number, admin_name, admin_number, com_area, com_field, remarks, additional_features, status, rDateTime, reference, preferred_lang, package_name, additional_packages)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Pending', NOW(), ?, ?, ?, ?)";
 
 $stmt = $conn->prepare($sql);
 // We bind as 's' (string) because partnerTb might be an ID or a mobile number
-$stmt->bind_param("ssssssssssss", $partner_identifier, $com_name, $com_address, $com_number, $admin_name, $admin_number, $com_area, $com_field, $remarks, $additional_features, $reference, $preferred_lang);
+$stmt->bind_param("ssssssssssssssss", $partner_identifier, $com_name, $com_address, $com_number, $admin_name, $admin_number, $com_area, $com_field, $remarks, $additional_features, $reference, $preferred_lang, $package_name, $additional_packages);
 
 if ($stmt->execute()) {
     echo json_encode(['success' => true, 'message' => 'Customer registered successfully']);

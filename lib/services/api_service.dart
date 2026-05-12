@@ -268,6 +268,8 @@ class ApiService {
         'additional_features': customer.additionalFeatures,
         'reference': customer.reference,
         'preferred_lang': customer.preferredLang,
+        'package_name': customer.packageName ?? '',
+        'additional_packages': customer.additionalPackages ?? '',
       });
 
       request.files.add(await http.MultipartFile.fromPath(
