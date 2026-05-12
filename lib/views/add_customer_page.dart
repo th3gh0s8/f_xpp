@@ -196,7 +196,26 @@ class _AddCustomerPageState extends State<AddCustomerPage> {
         Row(
           children: [
             Expanded(
-              child: _buildTextField(_discountController, 'DISCOUNT %', Icons.percent, isNumber: true, isOptional: true),
+              child: TextFormField(
+                controller: _discountController,
+                keyboardType: TextInputType.number,
+                style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 14),
+                decoration: InputDecoration(
+                  labelText: 'DISCOUNT % (OPTIONAL)',
+                  labelStyle: TextStyle(color: Colors.black.withOpacity(0.4), fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 1),
+                  prefixIcon: const Icon(Icons.percent, size: 18, color: Colors.black),
+                  filled: true,
+                  fillColor: Colors.black.withOpacity(0.03),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                ),
+                validator: (value) {
+                  if (value == null || value.isEmpty) return null;
+                  final discount = double.tryParse(value);
+                  if (discount == null || discount < 0 || discount > 100) return '0 - 100%';
+                  return null;
+                },
+              ),
             ),
             const SizedBox(width: 16),
             Expanded(
