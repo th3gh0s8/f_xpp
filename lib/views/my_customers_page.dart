@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import '../models/customer.dart';
 import '../services/api_service.dart';
 import '../widgets/system_overlay_wrapper.dart';
+import '../utils/format_utils.dart';
 
 class MyCustomersPage extends StatefulWidget {
   final String phoneNumber;
@@ -230,7 +231,7 @@ class _MyCustomersPageState extends State<MyCustomersPage> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => Container(
-        height: MediaQuery.of(context).size.height * 0.75,
+        height: MediaQuery.of(context).size.height * 0.9,
         decoration: const BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
@@ -249,7 +250,7 @@ class _MyCustomersPageState extends State<MyCustomersPage> {
             const SizedBox(height: 24),
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
+                padding: const EdgeInsets.fromLTRB(24, 16, 24, 80),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -288,21 +289,48 @@ class _MyCustomersPageState extends State<MyCustomersPage> {
                     _buildDetailRow('Phone', client.adminNumber),
                     const SizedBox(height: 24),
                     _buildSectionTitle('PACKAGE DETAILS'),
-                    _buildDetailRow('Package Name', client.packageName ?? 'N/A'),
-                    _buildDetailRow('Additional Packages', client.additionalPackages?.isNotEmpty == true ? client.additionalPackages! : 'N/A'),
+                    _buildDetailRow('Package', client.packageName ?? 'N/A'),
+                    _buildDetailRow('Additional Modules', client.additionalPackages?.isNotEmpty == true ? client.additionalPackages! : 'N/A'),
+                    _buildDetailRow('Discount', '${client.discount?.toStringAsFixed(0) ?? '0'}%'),
+                    _buildDetailRow('Total', FormatUtils.formatCurrency(client.totalCost ?? 0)),
                     const SizedBox(height: 24),
                     _buildSectionTitle('ADDITIONAL DETAILS'),
                     _buildDetailRow('Preferred Language', client.preferredLang),
                     _buildDetailRow('Reference Source', client.reference),
-                    _buildDetailRow('Features', client.additionalFeatures),
+                    const SizedBox(height: 16),
                     _buildDetailRow('Remarks', client.remarks),
-                    const SizedBox(height: 40),
+                    const SizedBox(height: 8),
                   ],
                 ),
               ),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildFeaturesSection(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(label.toUpperCase(), style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Colors.black26)),
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.black.withOpacity(0.02),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Text(
+              value.isEmpty ? 'N/A' : value,
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.black87),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -322,6 +350,7 @@ class _MyCustomersPageState extends State<MyCustomersPage> {
       padding: const EdgeInsets.only(bottom: 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
           Text(label.toUpperCase(), style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Colors.black26)),
           const SizedBox(height: 4),

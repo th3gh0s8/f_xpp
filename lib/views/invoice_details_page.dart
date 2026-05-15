@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/invoice.dart';
+import '../utils/format_utils.dart';
 import 'package:intl/intl.dart';
 
 class InvoiceDetailsPage extends StatelessWidget {
@@ -45,15 +46,15 @@ class InvoiceDetailsPage extends StatelessWidget {
               [
                 _buildDetailRow('DATE', DateFormat('yyyy-MM-dd').format(invoice.date)),
                 _buildDetailRow('TIME', invoice.time),
-                _buildDetailRow('TOTAL VALUE', 'LKR ${invoice.value.toStringAsFixed(2)}'),
+                _buildDetailRow('TOTAL VALUE', FormatUtils.formatCurrency(invoice.value.toDouble())),
               ],
             ),
             const SizedBox(height: 24),
             _buildInfoSection(
               'PAYMENT STATUS',
               [
-                _buildDetailRow('PAID AMOUNT', 'LKR ${invoice.paid.toStringAsFixed(2)}'),
-                _buildDetailRow('BALANCE', 'LKR ${invoice.balance.toStringAsFixed(2)}', valueColor: invoice.balance > 0 ? Colors.red : Colors.black),
+                _buildDetailRow('PAID AMOUNT', FormatUtils.formatCurrency(invoice.paid.toDouble())),
+                _buildDetailRow('BALANCE', FormatUtils.formatCurrency(invoice.balance.toDouble()), valueColor: invoice.balance > 0 ? Colors.red : Colors.black),
               ],
             ),
             const SizedBox(height: 32),
@@ -94,13 +95,14 @@ class InvoiceDetailsPage extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            'LKR ${invoice.comAmount.toStringAsFixed(2)}',
+            FormatUtils.formatCurrency(invoice.comAmount.toDouble()),
             style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.w900, letterSpacing: -1),
           ),
         ],
       ),
     );
   }
+// ... rest of file
 
   Widget _buildInfoSection(String title, List<Widget> children) {
     return Column(

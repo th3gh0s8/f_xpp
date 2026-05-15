@@ -3,6 +3,7 @@ import '../models/invoice.dart';
 import '../services/api_service.dart';
 import 'invoice_details_page.dart';
 import '../widgets/system_overlay_wrapper.dart';
+import '../utils/format_utils.dart';
 
 class InvoicesView extends StatefulWidget {
   final String phoneNumber;
@@ -133,7 +134,7 @@ class _InvoicesViewState extends State<InvoicesView> {
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
                       Text(
-                        'LKR ${invoice.comAmount}',
+                        FormatUtils.formatCurrency(invoice.comAmount.toDouble()),
                         style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 15, letterSpacing: -0.5),
                       ),
                       const SizedBox(height: 4),

@@ -271,6 +271,7 @@ class ApiService {
         'package_name': customer.packageName ?? '',
         'additional_packages': customer.additionalPackages ?? '',
         'discount': customer.discount?.toString() ?? '0',
+        'total_cost': customer.totalCost?.toString() ?? '0',
       });
 
       request.files.add(await http.MultipartFile.fromPath(

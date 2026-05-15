@@ -165,14 +165,16 @@ class _ProfileViewState extends State<ProfileView> {
             color: Colors.black.withOpacity(0.05),
             borderRadius: BorderRadius.circular(20),
           ),
-          child: const Row(
+          child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.verified, size: 14, color: Colors.blue),
-              SizedBox(width: 6),
+              Icon(Icons.verified, size: 14, color: _partner?.status == 'authorized' ? Colors.blue : (_partner?.status == 'pending' ? Colors.orange : Colors.red)),
+              const SizedBox(width: 6),
               Text(
-                'AUTHORIZED PARTNER',
-                style: TextStyle(fontSize: 9, fontWeight: FontWeight.w900, letterSpacing: 1),
+                (_partner?.status == 'authorized' 
+                    ? '${_partner!.status} PARTNER' 
+                    : (_partner?.status == 'pending' ? 'PENDING VERIFICATION' : (_partner?.status ?? 'PENDING'))).toUpperCase(),
+                style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w900, letterSpacing: 1),
               ),
             ],
           ),

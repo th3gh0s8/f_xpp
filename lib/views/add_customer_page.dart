@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:intl_phone_field/intl_phone_field.dart';
+import 'package:intl/intl.dart';
 import '../models/customer.dart';
 import '../services/api_service.dart';
 import '../models/resell_package.dart';
@@ -17,6 +18,9 @@ class AddCustomerPage extends StatefulWidget {
 class _AddCustomerPageState extends State<AddCustomerPage> {
   final _formKey = GlobalKey<FormState>();
   final ApiService _apiService = ApiService();
+  final NumberFormat _currencyFormat = NumberFormat("#,##0", "en_LK");
+
+  String _formatCurrency(double amount) => 'LKR ${_currencyFormat.format(amount)}';
   
   final TextEditingController _comNameController = TextEditingController();
   final TextEditingController _comAddressController = TextEditingController();
@@ -172,7 +176,7 @@ class _AddCustomerPageState extends State<AddCustomerPage> {
           ),
           const SizedBox(height: 12),
           Container(
-            height: 250,
+            height: 200,
             padding: const EdgeInsets.all(4),
             decoration: BoxDecoration(
               color: Colors.black.withOpacity(0.02),
@@ -219,19 +223,33 @@ class _AddCustomerPageState extends State<AddCustomerPage> {
             ),
             const SizedBox(width: 16),
             Expanded(
-              child: TextFormField(
-                controller: _finalAmountController,
-                readOnly: true,
-                style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 14),
-                decoration: InputDecoration(
-                  labelText: 'FINAL AMOUNT',
-                  labelStyle: TextStyle(color: Colors.black.withOpacity(0.4), fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 1),
-                  prefixIcon: const Icon(Icons.payments_outlined, size: 18, color: Colors.black),
-                  filled: true,
-                  fillColor: Colors.black.withOpacity(0.03),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                ),
+              child: Column(
+                children: [
+                  TextFormField(
+                    controller: _finalAmountController,
+                    keyboardType: TextInputType.number,
+                    style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 14),
+                    onChanged: (value) => setState(() {}),
+                    decoration: InputDecoration(
+                      labelText: 'FINAL AMOUNT',
+                      labelStyle: TextStyle(color: Colors.black.withOpacity(0.4), fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 1),
+                      prefixIcon: const Icon(Icons.payments_outlined, size: 18, color: Colors.black),
+                      filled: true,
+                      fillColor: Colors.black.withOpacity(0.03),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                    ),
+                  ),
+                  if (double.tryParse(_finalAmountController.text) != null && 
+                      (double.tryParse(_finalAmountController.text)! - _calculatedTotal).abs() > 0.01)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Text(
+                        'WARNING: DIFFERENCE OF LKR ${(double.tryParse(_finalAmountController.text)! - _calculatedTotal).abs().toStringAsFixed(2)}',
+                        style: const TextStyle(fontSize: 9, color: Colors.red, fontWeight: FontWeight.w900),
+                      ),
+                    ),
+                ],
               ),
             ),
           ],
@@ -247,7 +265,7 @@ class _AddCustomerPageState extends State<AddCustomerPage> {
   Widget _buildModuleCheckbox(ResellPackageModule module) {
     bool isSelected = _selectedModules.any((m) => m.id == module.id);
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.only(bottom: 6),
       child: InkWell(
         onTap: () {
           setState(() {
@@ -261,7 +279,7 @@ class _AddCustomerPageState extends State<AddCustomerPage> {
         },
         borderRadius: BorderRadius.circular(12),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
             color: isSelected ? Colors.black : Colors.black.withOpacity(0.02),
             borderRadius: BorderRadius.circular(12),
@@ -271,28 +289,31 @@ class _AddCustomerPageState extends State<AddCustomerPage> {
             children: [
               Icon(
                 isSelected ? Icons.check_box : Icons.check_box_outline_blank,
-                size: 18,
+                size: 16,
                 color: isSelected ? Colors.white : Colors.black38,
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 8),
               Expanded(
                 child: Text(
                   module.moduleName.toUpperCase(),
                   style: TextStyle(
-                    fontSize: 11,
+                    fontSize: 10,
                     fontWeight: FontWeight.w900,
                     color: isSelected ? Colors.white : Colors.black87,
                   ),
                 ),
               ),
               IconButton(
-                icon: Icon(Icons.info_outline, size: 16, color: isSelected ? Colors.white70 : Colors.black38),
+                icon: Icon(Icons.info_outline, size: 14, color: isSelected ? Colors.white70 : Colors.black38),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
                 onPressed: () => _showDescriptionDialog(context, module.moduleName, module.moduleDescription),
               ),
+              const SizedBox(width: 8),
               Text(
-                'LKR ${module.modulePrice.toStringAsFixed(0)}',
+                _formatCurrency(module.modulePrice),
                 style: TextStyle(
-                  fontSize: 10,
+                  fontSize: 9,
                   fontWeight: FontWeight.w900,
                   color: isSelected ? Colors.white70 : Colors.black38,
                 ),
@@ -391,6 +412,7 @@ class _AddCustomerPageState extends State<AddCustomerPage> {
         packageName: _selectedPackage?.packageName,
         additionalPackages: _selectedModules.map((m) => m.moduleName).join(','),
         discount: double.tryParse(_discountController.text) ?? 0.0,
+        totalCost: double.tryParse(_finalAmountController.text) ?? 0.0,
       );
 
       // Pass the phone number directly to the API service

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../widgets/system_overlay_wrapper.dart';
+import '../utils/format_utils.dart';
 
 class PayoutsView extends StatefulWidget {
   final String phoneNumber;
@@ -198,7 +199,7 @@ class _PayoutsViewState extends State<PayoutsView> {
           ),
           const SizedBox(height: 12),
           Text(
-            'LKR ${_dashboardData?['available_balance'] ?? '0.00'}',
+            FormatUtils.formatCurrency(double.tryParse(_dashboardData?['available_balance']?.toString() ?? '0') ?? 0),
             style: const TextStyle(
               color: Colors.white, 
               fontSize: 36, 
@@ -284,7 +285,7 @@ class _PayoutsViewState extends State<PayoutsView> {
                 ],
               ),
               Text(
-                'LKR ${payout['amount']}',
+                FormatUtils.formatCurrency(double.tryParse(payout['amount'].toString()) ?? 0),
                 style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 15),
               ),
             ],

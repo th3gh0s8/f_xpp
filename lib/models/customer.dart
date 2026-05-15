@@ -16,6 +16,7 @@ class Customer {
   final String? packageName;
   final String? additionalPackages;
   final double? discount;
+  final double? totalCost;
 
   Customer({
     this.id,
@@ -35,10 +36,10 @@ class Customer {
     this.packageName,
     this.additionalPackages,
     this.discount,
+    this.totalCost,
   });
 
   factory Customer.fromJson(Map<String, dynamic> json) {
-    // Aggressively convert every potential numeric field to string
     String safeString(dynamic val) => (val ?? '').toString();
     int safeInt(dynamic val) => int.tryParse(val?.toString() ?? '0') ?? 0;
 
@@ -60,6 +61,7 @@ class Customer {
       packageName: safeString(json['package_name']),
       additionalPackages: safeString(json['additional_packages']),
       discount: double.tryParse(json['discount']?.toString() ?? '0'),
+      totalCost: double.tryParse(json['total_cost']?.toString() ?? '0'),
     );
   }
 
@@ -80,6 +82,7 @@ class Customer {
       'package_name': packageName,
       'additional_packages': additionalPackages,
       'discount': discount,
+      'total_cost': totalCost,
     };
   }
 }

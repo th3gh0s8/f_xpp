@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../utils/format_utils.dart';
 import 'package:flutter/services.dart';
 import '../widgets/system_overlay_wrapper.dart';
 
@@ -156,7 +157,7 @@ Widget build(BuildContext context) {
           ),
           const SizedBox(height: 16),
           Text(
-            'LKR ${_estimatedMonthly.toStringAsFixed(2)}',
+            FormatUtils.formatCurrency(_estimatedMonthly),
             style: const TextStyle(color: Colors.white, fontSize: 36, fontWeight: FontWeight.w900, letterSpacing: -1),
           ),
           const SizedBox(height: 4),
@@ -172,7 +173,7 @@ Widget build(BuildContext context) {
               borderRadius: BorderRadius.circular(12),
             ),
             child: Text(
-              '${_currentRate.toInt()}% COMMISSION RATE',
+              '${FormatUtils.formatPercentage(_currentRate)} COMMISSION RATE',
               style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 12),
             ),
           ),

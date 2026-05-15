@@ -17,6 +17,7 @@ class Partner {
   final String? city;
   final String? taxId;
   final String? website;
+  final String? status;
 
   Partner({
     this.id,
@@ -37,6 +38,7 @@ class Partner {
     this.city,
     this.taxId,
     this.website,
+    this.status,
   });
 
   factory Partner.fromJson(Map<String, dynamic> json) {
@@ -62,6 +64,7 @@ class Partner {
       city: json['city']?.toString(),
       taxId: json['tax_id']?.toString(),
       website: json['website']?.toString(),
+      status: json['status']?.toString(),
     );
   }
 
@@ -84,6 +87,7 @@ class Partner {
       'city': city,
       'tax_id': taxId,
       'website': website,
+      'status': status,
     };
   }
 }

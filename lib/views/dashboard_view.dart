@@ -5,6 +5,7 @@ import 'level_benefits_page.dart';
 import 'invoice_details_page.dart';
 import 'my_customers_page.dart';
 import 'resell_packages_page.dart';
+import '../utils/format_utils.dart';
 
 class DashboardView extends StatefulWidget {
   final String phoneNumber;
@@ -112,7 +113,6 @@ class _DashboardViewState extends State<DashboardView> {
   }
 
   Widget _buildStatsGrid() {
-    // Robust parsing for all stats
     final data = _dashboardData;
     int totalCustomers = int.tryParse(data?['total_customers']?.toString() ?? '0') ?? 0;
     double pending = double.tryParse(data?['pending_payouts']?.toString() ?? '0') ?? 0;
@@ -128,13 +128,13 @@ class _DashboardViewState extends State<DashboardView> {
       children: [
         _buildStatCard(
           'TOTAL EARNED', 
-          'LKR ${data?['total_earned'] ?? '0.00'}',
+          FormatUtils.formatCurrency(double.tryParse(data?['total_earned']?.toString() ?? '0') ?? 0),
           [const Color(0xFF212121), Colors.black],
           Colors.white,
         ),
         _buildStatCard(
           'PENDING', 
-          'LKR ${pending.toStringAsFixed(2)}',
+          FormatUtils.formatCurrency(pending),
           [const Color(0xFF424242), const Color(0xFF212121)],
           Colors.white,
         ),
@@ -298,7 +298,7 @@ class _DashboardViewState extends State<DashboardView> {
                       Text('${invoice.date.toString().split(' ')[0]}', style: TextStyle(fontSize: 11, color: Colors.black.withOpacity(0.3), fontWeight: FontWeight.w700)),
                     ],
                   ),
-                  Text('LKR ${invoice.comAmount}', style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 15, letterSpacing: -0.5)),
+                  Text(FormatUtils.formatCurrency(invoice.comAmount.toDouble()), style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 15, letterSpacing: -0.5)),
                 ],
               ),
             ),
