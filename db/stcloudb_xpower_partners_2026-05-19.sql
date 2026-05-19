@@ -1,5 +1,16 @@
 
 
+CREATE TABLE `admins` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `username` varchar(50) NOT NULL,
+  `password` varchar(255) NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `username` (`username`)
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci;
+
+INSERT INTO `admins` VALUES ('1', 'admin', '$2y$10$gx4OhoDQU.IsRHxADFBjye8RqXlliBfojbjadkG59wd5JFHWT18dS');
+
+
 CREATE TABLE `invoices` (
   `ID` int(11) NOT NULL AUTO_INCREMENT,
   `br_id` int(11) NOT NULL,
@@ -130,7 +141,7 @@ CREATE TABLE `login_activity` (
   `time` datetime NOT NULL,
   `status` int(11) NOT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=191 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=193 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 INSERT INTO `login_activity` VALUES ('1', '772610398', '1', '2026-04-17 06:40:34', '1');
 INSERT INTO `login_activity` VALUES ('2', '772610398', 'login', '2026-04-17 07:13:08', '1');
@@ -319,6 +330,8 @@ INSERT INTO `login_activity` VALUES ('187', '7', '3', '2026-05-11 05:19:54', '1'
 INSERT INTO `login_activity` VALUES ('188', '1', '3', '2026-05-11 05:29:06', '1');
 INSERT INTO `login_activity` VALUES ('189', '8', '3', '2026-05-11 05:31:41', '1');
 INSERT INTO `login_activity` VALUES ('190', '7', '3', '2026-05-11 05:44:12', '1');
+INSERT INTO `login_activity` VALUES ('191', '1', '3', '2026-05-12 09:10:54', '1');
+INSERT INTO `login_activity` VALUES ('192', '7', '3', '2026-05-12 09:19:17', '1');
 
 
 CREATE TABLE `new_clients` (
@@ -606,7 +619,7 @@ INSERT INTO `new_clients` VALUES ('375', '7', 'Wayne Industries Pvt Ltd ', 'Goth
 INSERT INTO `new_clients` VALUES ('376', '7', 'Wayne Industries Pvt Ltd', 'Gotham', '2147483647', 'Bruce Wayne', '2147483647', 'Worldwide ', 'Construction', 'Mr Wayne\'s company', 'im batman\n\nPACKAGE: xPower Accounting Software\nMODULES: Barcode Printing, Order & Delivery, Purchase Order, Imei Management, Location Stock Management, Quotation, Promotion or Free Issue, Manufacture, Issue Item to Rep (Van S', '2026-05-12 03:55:09', 'pending', 'Customer Called me', 'English', 'xPower Accounting Software', 'Barcode Printing,Order & Delivery,Purchase Order,Imei Management,Location Stock Management,Quotation,Promotion or Free Issue,Manufacture,Issue Item to Rep (Van Sales),Stock Audit,Rack Management,Branch Wise Report Filter,Repair Package,Import Invoice from', '0', '0.00');
 INSERT INTO `new_clients` VALUES ('377', '7', 'Akatsuki', 'In the shadows ', '2147483647', 'Pain', '2147483647', 'Worldwide ', 'World Domination ', '', '\n\nPACKAGE: E-Commerce Website\nMODULES: \nTOTAL: LKR 4900.00', '2026-05-12 04:18:56', 'pending', 'Customer Called me', 'English', 'E-Commerce Website', '', '0', '99.00');
 INSERT INTO `new_clients` VALUES ('378', '7', 'Omen Soft', 'Srilanka ', '772610398', 'gh0s8', '772610398', 'Worldwide ', 'Software Engineering ', 'KKK', 'Profesional Website \n\nPACKAGE: E-Commerce Website\nMODULES: \nTOTAL: LKR 0.00', '2026-05-12 08:00:24', 'pending', 'Customer Called me', 'English', 'E-Commerce Website', '', '0', '100.00');
-INSERT INTO `new_clients` VALUES ('379', '7', 'Omen Software ', 'Srilanka', '702610398', 'gh0s8', '772610398', 'Worldwide ', 'Software Engineering ', 'KKK', 'SS\n\nPACKAGE: xPower Accounting Software\nMODULES: Barcode Printing, Order & Delivery, Purchase Order, Location Stock Management, TRCSL SMS Masking, Imei Management, Quotation, Promotion or Free Issue, Manufacture, My Cashier, ', '2026-05-12 08:03:45', 'pending', 'Customer Called me', 'English', 'xPower Accounting Software', 'Barcode Printing,Order & Delivery,Purchase Order,Location Stock Management,TRCSL SMS Masking,Imei Management,Quotation,Promotion or Free Issue,Manufacture,My Cashier,Issue Item to Rep (Van Sales),Stock Audit,Rack Management,Branch Wise Report Filter,Repai', '0', '25.00');
+INSERT INTO `new_clients` VALUES ('379', '7', 'Omen Software ', 'Srilanka', '702610398', 'gh0s8', '772610398', 'Worldwide ', 'Software Engineering ', 'KKK', 'SS\n\nPACKAGE: xPower Accounting Software\nMODULES: Barcode Printing, Order & Delivery, Purchase Order, Location Stock Management, TRCSL SMS Masking, Imei Management, Quotation, Promotion or Free Issue, Manufacture, My Cashier, ', '2026-05-12 08:03:45', 'active', 'Customer Called me', 'English', 'xPower Accounting Software', 'Barcode Printing,Order & Delivery,Purchase Order,Location Stock Management,TRCSL SMS Masking,Imei Management,Quotation,Promotion or Free Issue,Manufacture,My Cashier,Issue Item to Rep (Van Sales),Stock Audit,Rack Management,Branch Wise Report Filter,Repai', '0', '25.00');
 
 
 CREATE TABLE `partner_levels` (
@@ -785,7 +798,7 @@ CREATE TABLE `sms_sendcount` (
   `mahalla_id` int(11) DEFAULT NULL,
   PRIMARY KEY (`ID`),
   KEY `ID` (`ID`)
-) ENGINE=InnoDB AUTO_INCREMENT=1383 DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=1385 DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci;
 
 INSERT INTO `sms_sendcount` VALUES ('1364', '1', '2266670609', '1', 'PartnerOTP', 'Your xPower Partners OTP is: 2387', '94702610398', 'Etisalet', '2026-05-08', '09:45:09', '1', '1', 'lex', 'partners', '', '', '', '0');
 INSERT INTO `sms_sendcount` VALUES ('1365', '1', '2266933625', '1', 'PartnerOTP', 'Your xPower Partners OTP is: 6556', '94702610398', 'Etisalet', '2026-05-08', '10:15:44', '1', '1', 'lex', 'partners', '', '', '', '0');
@@ -806,6 +819,8 @@ INSERT INTO `sms_sendcount` VALUES ('1379', '1', '2280078699', '1', 'PartnerOTP'
 INSERT INTO `sms_sendcount` VALUES ('1380', '1', '2280138927', '1', 'PartnerOTP', 'Your xPower Partners OTP is: 9145', '94772610398', 'Etisalet', '2026-05-11', '05:28:45', '1', '1', 'chamuditha', 'partners', '', '', '', '0');
 INSERT INTO `sms_sendcount` VALUES ('1381', '1', '2280154753', '1', 'PartnerOTP', 'Your xPower Partners OTP is: 4273', '94775656798', 'Etisalet', '2026-05-11', '05:31:02', '1', '1', 'Halir', 'partners', '', '', '', '0');
 INSERT INTO `sms_sendcount` VALUES ('1382', '1', '2280208769', '1', 'PartnerOTP', 'Your xPower Partners OTP is: 2726', '94702610398', 'Etisalet', '2026-05-11', '05:38:11', '1', '1', 'lex', 'partners', '', '', '', '0');
+INSERT INTO `sms_sendcount` VALUES ('1383', '1', '2286191301', '1', 'PartnerOTP', 'Your xPower Partners OTP is: 3222', '94772610398', 'Etisalet', '2026-05-12', '09:10:19', '1', '1', 'chamuditha', 'partners', '', '', '', '0');
+INSERT INTO `sms_sendcount` VALUES ('1384', '1', '2286237003', '1', 'PartnerOTP', 'Your xPower Partners OTP is: 4252', '94702610398', 'Etisalet', '2026-05-12', '09:19:05', '1', '1', 'lex', 'partners', '', '', '', '0');
 
 
 CREATE TABLE `sms_sendcount_error` (
@@ -833,6 +848,27 @@ CREATE TABLE `sms_sendcount_error` (
 
 
 
+CREATE TABLE `users` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `email` varchar(255) NOT NULL,
+  `password_hash` varchar(255) NOT NULL,
+  `first_name` varchar(100) DEFAULT NULL,
+  `last_name` varchar(100) DEFAULT NULL,
+  `role` enum('student','teacher','admin','parent') NOT NULL DEFAULT 'student',
+  `phone` varchar(20) DEFAULT NULL,
+  `is_active` tinyint(1) DEFAULT 1,
+  `is_verified` tinyint(1) DEFAULT 0,
+  `last_login` timestamp NULL DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `email` (`email`),
+  KEY `idx_email` (`email`),
+  KEY `idx_role` (`role`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci;
+
+
+
 CREATE TABLE `web_codes` (
   `ID` int(11) NOT NULL AUTO_INCREMENT,
   `u_Id` varchar(20) NOT NULL,
@@ -840,7 +876,7 @@ CREATE TABLE `web_codes` (
   `time` datetime NOT NULL,
   `status` int(11) NOT NULL,
   PRIMARY KEY (`ID`)
-) ENGINE=InnoDB AUTO_INCREMENT=426 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=428 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 INSERT INTO `web_codes` VALUES ('340', '772610398', '2112', '2026-05-06 09:24:53', '1');
 INSERT INTO `web_codes` VALUES ('341', '702610398', '8460', '2026-05-06 09:26:16', '1');
@@ -928,6 +964,8 @@ INSERT INTO `web_codes` VALUES ('422', '702610398', '9549', '2026-05-11 05:19:19
 INSERT INTO `web_codes` VALUES ('423', '772610398', '9145', '2026-05-11 05:28:42', '1');
 INSERT INTO `web_codes` VALUES ('424', '775656798', '4273', '2026-05-11 05:30:59', '1');
 INSERT INTO `web_codes` VALUES ('425', '702610398', '2726', '2026-05-11 05:38:09', '1');
+INSERT INTO `web_codes` VALUES ('426', '772610398', '3222', '2026-05-12 09:10:17', '1');
+INSERT INTO `web_codes` VALUES ('427', '702610398', '4252', '2026-05-12 09:19:03', '1');
 
 
 CREATE TABLE `web_documents` (
