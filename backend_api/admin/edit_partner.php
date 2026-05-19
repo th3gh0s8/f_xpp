@@ -4,19 +4,37 @@
 $id = (int)($_GET['id'] ?? 0);
 if ($id == 0) { header("Location: partners.php"); exit; }
 
-if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    $first_name = $_POST['first_name'];
-    $last_name = $_POST['last_name'];
-    $email = $_POST['email'];
-    $mobile_no = $_POST['mobile_no'];
-    $bank_name = $_POST['bank_name'];
-    $bank_account_no = $_POST['bank_account_no'];
+// Fetch schema to build form dynamically
+$result_meta = $conn->query("SELECT * FROM partners LIMIT 1");
+$fields = $result_meta->fetch_fields();
 
-    $stmt = $conn->prepare("UPDATE partners SET first_name=?, last_name=?, email=?, mobile_no=?, bank_name=?, bank_account_no=? WHERE ID=?");
-    $stmt->bind_param("ssssssi", $first_name, $last_name, $email, $mobile_no, $bank_name, $bank_account_no, $id);
+if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+    $updates = [];
+    $types = "";
+    $values = [];
+    
+    foreach ($fields as $field) {
+        if ($field->name == 'ID') continue;
+        
+        $updates[] = "`{$field->name}` = ?";
+        $values[] = $_POST[$field->name] ?? null;
+        
+        // Determine type for bind_param
+        if (in_array($field->type, [3, 8, 9])) $types .= "i"; // integers
+        elseif (in_array($field->type, [4, 5])) $types .= "d"; // doubles
+        else $types .= "s"; // strings/others
+    }
+    
+    $sql = "UPDATE partners SET " . implode(', ', $updates) . " WHERE ID = ?";
+    $stmt = $conn->prepare($sql);
+    
+    $types .= "i";
+    $values[] = $id;
+    
+    $stmt->bind_param($types, ...$values);
     
     if ($stmt->execute()) {
-        echo "<div class='alert alert-success'>Partner updated!</div>";
+        echo "<div class='alert alert-success'>Partner updated successfully!</div>";
     } else {
         echo "<div class='alert alert-danger'>Update failed: " . $conn->error . "</div>";
     }
@@ -26,40 +44,52 @@ $partner = $conn->query("SELECT * FROM partners WHERE ID = $id")->fetch_assoc();
 if (!$partner) { echo "Partner not found"; include 'footer.php'; exit; }
 ?>
 
-<h2>Edit Partner</h2>
-<form method="POST" class="card p-4 shadow-sm">
-    <div class="row">
-        <div class="col-md-6 mb-3">
-            <label>First Name</label>
-            <input type="text" name="first_name" class="form-control" value="<?php echo $partner['first_name']; ?>" required>
-        </div>
-        <div class="col-md-6 mb-3">
-            <label>Last Name</label>
-            <input type="text" name="last_name" class="form-control" value="<?php echo $partner['last_name']; ?>" required>
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2>Edit Partner: <?php echo htmlspecialchars($partner['first_name'] . ' ' . $partner['last_name']); ?></h2>
+    <a href="partners.php" class="btn btn-secondary">Back to List</a>
+</div>
+
+<form method="POST" class="card shadow-sm">
+    <div class="card-body">
+        <div class="row">
+            <?php foreach ($fields as $field): ?>
+                <?php if ($field->name == 'ID') continue; ?>
+                <div class="col-md-4 mb-3">
+                    <label class="form-label small fw-bold text-uppercase"><?php echo str_replace('_', ' ', $field->name); ?></label>
+                    <?php
+                        $val = $partner[$field->name];
+                        $name = $field->name;
+                        
+                        // Basic dynamic input logic
+                        if (strpos($field->name, 'email') !== false) {
+                            echo "<input type='email' name='$name' class='form-control' value='" . htmlspecialchars($val) . "'>";
+                        } elseif (strpos($field->name, 'status') !== false) {
+                            echo "<select name='$name' class='form-control'>";
+                            foreach(['pending', 'authorized', 'unauthorized'] as $opt) {
+                                $sel = ($val == $opt) ? 'selected' : '';
+                                echo "<option value='$opt' $sel>" . strtoupper($opt) . "</option>";
+                            }
+                            echo "</select>";
+                        } elseif (strpos($field->name, 'partner_type') !== false) {
+                            echo "<select name='$name' class='form-control'>";
+                            foreach(['freelancer', 'business'] as $opt) {
+                                $sel = ($val == $opt) ? 'selected' : '';
+                                echo "<option value='$opt' $sel>" . ucfirst($opt) . "</option>";
+                            }
+                            echo "</select>";
+                        } elseif (strlen($val) > 100) {
+                            echo "<textarea name='$name' class='form-control' rows='3'>" . htmlspecialchars($val) . "</textarea>";
+                        } else {
+                            echo "<input type='text' name='$name' class='form-control' value='" . htmlspecialchars($val) . "'>";
+                        }
+                    ?>
+                </div>
+            <?php endforeach; ?>
         </div>
     </div>
-    <div class="row">
-        <div class="col-md-6 mb-3">
-            <label>Email</label>
-            <input type="email" name="email" class="form-control" value="<?php echo $partner['email']; ?>" required>
-        </div>
-        <div class="col-md-6 mb-3">
-            <label>Mobile No</label>
-            <input type="text" name="mobile_no" class="form-control" value="<?php echo $partner['mobile_no']; ?>" required>
-        </div>
+    <div class="card-footer bg-light text-end">
+        <button type="submit" class="btn btn-primary px-5">Save Changes</button>
     </div>
-    <div class="row">
-        <div class="col-md-6 mb-3">
-            <label>Bank Name</label>
-            <input type="text" name="bank_name" class="form-control" value="<?php echo $partner['bank_name']; ?>">
-        </div>
-        <div class="col-md-6 mb-3">
-            <label>Bank Account No</label>
-            <input type="text" name="bank_account_no" class="form-control" value="<?php echo $partner['bank_account_no']; ?>">
-        </div>
-    </div>
-    <button type="submit" class="btn btn-primary">Update Partner</button>
-    <a href="partners.php" class="btn btn-secondary">Back</a>
 </form>
 
 <?php include 'footer.php'; ?>

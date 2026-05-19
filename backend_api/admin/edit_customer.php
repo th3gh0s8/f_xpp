@@ -4,18 +4,37 @@
 $id = (int)($_GET['id'] ?? 0);
 if ($id == 0) { header("Location: customers.php"); exit; }
 
-if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    $com_name = $_POST['com_name'];
-    $com_address = $_POST['com_address'];
-    $admin_name = $_POST['admin_name'];
-    $status = $_POST['status'];
-    $remarks = $_POST['remarks'];
+// Fetch schema to build form dynamically
+$result_meta = $conn->query("SELECT * FROM new_clients LIMIT 1");
+$fields = $result_meta->fetch_fields();
 
-    $stmt = $conn->prepare("UPDATE new_clients SET com_name=?, com_address=?, admin_name=?, status=?, remarks=? WHERE ID=?");
-    $stmt->bind_param("sssssi", $com_name, $com_address, $admin_name, $status, $remarks, $id);
+if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+    $updates = [];
+    $types = "";
+    $values = [];
+    
+    foreach ($fields as $field) {
+        if ($field->name == 'ID') continue;
+        
+        $updates[] = "`{$field->name}` = ?";
+        $values[] = $_POST[$field->name] ?? null;
+        
+        // Determine type for bind_param
+        if (in_array($field->type, [3, 8, 9])) $types .= "i"; // integers
+        elseif (in_array($field->type, [4, 5])) $types .= "d"; // doubles
+        else $types .= "s"; // strings/others
+    }
+    
+    $sql = "UPDATE new_clients SET " . implode(', ', $updates) . " WHERE ID = ?";
+    $stmt = $conn->prepare($sql);
+    
+    $types .= "i";
+    $values[] = $id;
+    
+    $stmt->bind_param($types, ...$values);
     
     if ($stmt->execute()) {
-        echo "<div class='alert alert-success'>Customer updated!</div>";
+        echo "<div class='alert alert-success'>Customer updated successfully!</div>";
     } else {
         echo "<div class='alert alert-danger'>Update failed: " . $conn->error . "</div>";
     }
@@ -25,37 +44,63 @@ $customer = $conn->query("SELECT * FROM new_clients WHERE ID = $id")->fetch_asso
 if (!$customer) { echo "Customer not found"; include 'footer.php'; exit; }
 ?>
 
-<h2>Edit Customer</h2>
-<form method="POST" class="card p-4 shadow-sm">
-    <div class="row">
-        <div class="col-md-6 mb-3">
-            <label>Company Name</label>
-            <input type="text" name="com_name" class="form-control" value="<?php echo $customer['com_name']; ?>" required>
-        </div>
-        <div class="col-md-6 mb-3">
-            <label>Admin Name</label>
-            <input type="text" name="admin_name" class="form-control" value="<?php echo $customer['admin_name']; ?>" required>
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2>Edit Customer: <?php echo htmlspecialchars($customer['com_name']); ?></h2>
+    <a href="customers.php" class="btn btn-secondary">Back to List</a>
+</div>
+
+<form method="POST" class="card shadow-sm">
+    <div class="card-body">
+        <div class="row">
+            <?php foreach ($fields as $field): ?>
+                <?php if ($field->name == 'ID') continue; ?>
+                <div class="col-md-4 mb-3">
+                    <label class="form-label small fw-bold text-uppercase"><?php echo str_replace('_', ' ', $field->name); ?></label>
+                    <?php
+                        $val = $customer[$field->name];
+                        $name = $field->name;
+                        
+                        // Basic dynamic input logic
+                        if ($field->name == 'status') {
+                            echo "<select name='$name' class='form-control'>";
+                            foreach(['pending', 'active'] as $opt) {
+                                $sel = ($val == $opt) ? 'selected' : '';
+                                echo "<option value='$opt' $sel>" . strtoupper($opt) . "</option>";
+                            }
+                            echo "</select>";
+                        } elseif ($field->name == 'partnerTb') {
+                            // Partner selection
+                            $partners = $conn->query("SELECT ID, first_name, last_name FROM partners ORDER BY first_name ASC");
+                            echo "<select name='$name' class='form-control'>";
+                            while($p = $partners->fetch_assoc()) {
+                                $sel = ($val == $p['ID']) ? 'selected' : '';
+                                echo "<option value='{$p['ID']}' $sel>{$p['first_name']} {$p['last_name']} (ID: {$p['ID']})</option>";
+                            }
+                            echo "</select>";
+                        } elseif ($field->name == 'preferred_lang') {
+                            echo "<select name='$name' class='form-control'>";
+                            foreach(['English','Tamil','Sinhala','Arabic','Hindi'] as $opt) {
+                                $sel = ($val == $opt) ? 'selected' : '';
+                                echo "<option value='$opt' $sel>$opt</option>";
+                            }
+                            echo "</select>";
+                        } elseif (strlen($val) > 100 || strpos($field->name, 'address') !== false || strpos($field->name, 'remarks') !== false) {
+                            echo "<textarea name='$name' class='form-control' rows='3'>" . htmlspecialchars($val) . "</textarea>";
+                        } else {
+                            $type = 'text';
+                            if (strpos($field->name, 'Date') !== false || strpos($field->name, 'time') !== false) $type = 'datetime-local';
+                            elseif (in_array($field->type, [3, 8, 9, 4, 5])) $type = 'number';
+                            
+                            echo "<input type='$type' name='$name' class='form-control' value='" . htmlspecialchars($val) . "'>";
+                        }
+                    ?>
+                </div>
+            <?php endforeach; ?>
         </div>
     </div>
-    <div class="mb-3">
-        <label>Company Address</label>
-        <textarea name="com_address" class="form-control" required><?php echo $customer['com_address']; ?></textarea>
+    <div class="card-footer bg-light text-end">
+        <button type="submit" class="btn btn-primary px-5">Save Changes</button>
     </div>
-    <div class="row">
-        <div class="col-md-6 mb-3">
-            <label>Status</label>
-            <select name="status" class="form-control">
-                <option value="pending" <?php if($customer['status'] == 'pending') echo 'selected'; ?>>Pending</option>
-                <option value="active" <?php if($customer['status'] == 'active') echo 'selected'; ?>>Active</option>
-            </select>
-        </div>
-        <div class="col-md-6 mb-3">
-            <label>Remarks</label>
-            <input type="text" name="remarks" class="form-control" value="<?php echo $customer['remarks']; ?>">
-        </div>
-    </div>
-    <button type="submit" class="btn btn-primary">Update Customer</button>
-    <a href="customers.php" class="btn btn-secondary">Back</a>
 </form>
 
 <?php include 'footer.php'; ?>
