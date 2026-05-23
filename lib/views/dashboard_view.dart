@@ -205,6 +205,7 @@ class _DashboardViewState extends State<DashboardView> {
     final data = _dashboardData;
     int totalCustomers = int.tryParse(data?['total_customers']?.toString() ?? '0') ?? 0;
     double pending = double.tryParse(data?['pending_payouts']?.toString() ?? '0') ?? 0;
+    double available = double.tryParse(data?['available_balance']?.toString() ?? '0') ?? 0;
     String apiLevel = data?['level']?.toString() ?? 'ASSOCIATE';
     
     return GridView.count(
@@ -216,8 +217,8 @@ class _DashboardViewState extends State<DashboardView> {
       childAspectRatio: 1.4,
       children: [
         _buildStatCard(
-          'TOTAL EARNED', 
-          FormatUtils.formatCurrency(double.tryParse(data?['total_earned']?.toString() ?? '0') ?? 0),
+          'AVAILABLE BALANCE', 
+          FormatUtils.formatCurrency(available),
           [const Color(0xFF212121), Colors.black],
           Colors.white,
         ),
