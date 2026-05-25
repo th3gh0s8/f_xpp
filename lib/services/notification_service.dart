@@ -26,7 +26,7 @@ class NotificationService {
     );
 
     await _plugin.initialize(
-      settings: initializationSettings,
+      initializationSettings,
       onDidReceiveNotificationResponse: (NotificationResponse response) {
         // Handle notification click if needed
       },

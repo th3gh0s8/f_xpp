@@ -41,7 +41,8 @@ void callbackDispatcher() {
 
         if (newNotifications.isNotEmpty) {
           final ns = NotificationService();
-          // We don't init() here again to avoid context issues in background
+          await ns.init(); // MUST initialize in background isolate
+          
           for (var n in newNotifications) {
             final id = int.tryParse(n['id'].toString()) ?? 0;
             await ns.showNotification(
