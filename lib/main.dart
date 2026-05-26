@@ -1,64 +1,64 @@
 import 'dart:async';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:workmanager/workmanager.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_background_service/flutter_background_service.dart';
+import 'package:flutter_background_service_android/flutter_background_service_android.dart';
 import 'login_page.dart';
 import 'dashboard_page.dart';
 import 'services/session_manager.dart';
 import 'services/notification_service.dart';
 import 'services/api_service.dart';
+import 'database/database_helper.dart';
+
+Future<void> initializeService() async {
+  final service = FlutterBackgroundService();
+
+  await service.configure(
+    androidConfiguration: AndroidConfiguration(
+      onStart: onStart,
+      autoStart: true,
+      isForegroundMode: true,
+      notificationChannelId: 'xpower_notifications',
+      initialNotificationTitle: 'xPower Sync Service',
+      initialNotificationContent: 'Syncing notifications...',
+      foregroundServiceNotificationId: 888,
+    ),
+    iosConfiguration: IosConfiguration(autoStart: true, onForeground: (_) => true),
+  );
+  service.startService();
+}
 
 @pragma('vm:entry-point')
-void callbackDispatcher() {
-  Workmanager().executeTask((task, inputData) async {
-    print('DEBUG: Workmanager task started: $task');
-    try {
-      WidgetsFlutterBinding.ensureInitialized();
-      final phone = await SessionManager.getSession();
-      
-      if (phone == null || phone.isEmpty) return true;
+void onStart(ServiceInstance service) async {
+  DartPluginRegistrant.ensureInitialized();
+  if (service is AndroidServiceInstance) {
+    service.on('setAsForeground').listen((event) {
+      service.setAsForegroundService();
+    });
+  }
 
+  Timer.periodic(const Duration(seconds: 60), (timer) async {
+    final phone = await SessionManager.getSession();
+    if (phone != null && phone.isNotEmpty) {
       final api = ApiService();
+      final db = DatabaseHelper();
       final notifications = await api.getNotifications(phone);
-
-      if (notifications.isNotEmpty) {
-        final prefs = await SharedPreferences.getInstance();
-        int lastSeenId = prefs.getInt('last_notified_id') ?? 0;
-        int maxIdSeen = lastSeenId;
-        
-        final newNotifications = notifications.where((n) {
-          final id = int.tryParse(n['id'].toString()) ?? 0;
-          return id > lastSeenId;
-        }).toList();
-
-        newNotifications.sort((a, b) {
-          final idA = int.tryParse(a['id'].toString()) ?? 0;
-          final idB = int.tryParse(b['id'].toString()) ?? 0;
-          return idA.compareTo(idB);
-        });
-
-        if (newNotifications.isNotEmpty) {
-          final ns = NotificationService();
-          await ns.init(); // MUST initialize in background isolate
-          
-          for (var n in newNotifications) {
-            final id = int.tryParse(n['id'].toString()) ?? 0;
-            await ns.showNotification(
-              id: id,
-              title: n['title'].toString().toUpperCase(),
-              body: n['message'].toString(),
-            );
-            if (id > maxIdSeen) maxIdSeen = id;
-          }
-          await prefs.setInt('last_notified_id', maxIdSeen);
+      final lastId = await db.getLastNotificationId() ?? 0;
+      
+      final newOnes = notifications.where((n) => (int.tryParse(n['id'].toString()) ?? 0) > lastId).toList();
+      if (newOnes.isNotEmpty) {
+        for (var n in newOnes) {
+          await db.insertNotification(n);
+          await NotificationService().showNotification(
+            id: int.tryParse(n['id'].toString()) ?? 0,
+            title: n['title'].toString().toUpperCase(),
+            body: n['message'].toString(),
+          );
         }
       }
-    } catch (e) {
-      print('DEBUG: Background task EXCEPTION: $e');
     }
-    return true;
   });
 }
 
@@ -68,18 +68,8 @@ void main() async {
   // Init Notification Service
   await NotificationService().init();
 
-  // Init Workmanager
-  await Workmanager().initialize(callbackDispatcher);
-  
-  await Workmanager().registerPeriodicTask(
-    "xpower_notification_fetch",
-    "fetch_notifications_task",
-    frequency: const Duration(minutes: 15),
-    existingWorkPolicy: ExistingPeriodicWorkPolicy.replace,
-    constraints: Constraints(
-      networkType: NetworkType.connected,
-    ),
-  );
+  // Init Foreground Service
+  await initializeService();
 
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
@@ -114,20 +104,27 @@ class _MyAppState extends State<MyApp> {
       final phone = await SessionManager.getSession();
       if (phone != null && phone.isNotEmpty) {
         final api = ApiService();
+        final dbHelper = DatabaseHelper();
         final notifications = await api.getNotifications(phone);
 
         if (notifications.isNotEmpty) {
-          final prefs = await SharedPreferences.getInstance();
-          final lastSeenId = prefs.getInt('last_notified_id') ?? 0;
-          final latestId = int.tryParse(notifications.first['id'].toString()) ?? 0;
+          final lastSeenId = await dbHelper.getLastNotificationId() ?? 0;
+          
+          final newOnes = notifications.where((n) {
+            final id = int.tryParse(n['id'].toString()) ?? 0;
+            return id > lastSeenId;
+          }).toList();
 
-          if (latestId > lastSeenId) {
-            await NotificationService().showNotification(
-              id: latestId,
-              title: notifications.first['title'].toString().toUpperCase(),
-              body: notifications.first['message'].toString(),
-            );
-            await prefs.setInt('last_notified_id', latestId);
+          if (newOnes.isNotEmpty) {
+            for (var n in newOnes) {
+              await dbHelper.insertNotification(n);
+              final id = int.tryParse(n['id'].toString()) ?? 0;
+              await NotificationService().showNotification(
+                id: id,
+                title: n['title'].toString().toUpperCase(),
+                body: n['message'].toString(),
+              );
+            }
           }
         }
       }

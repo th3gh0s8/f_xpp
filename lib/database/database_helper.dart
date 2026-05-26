@@ -28,9 +28,24 @@ class DatabaseHelper {
     String path = join(await getDatabasesPath(), 'xpartner.db');
     return await openDatabase(
       path,
-      version: 1,
+      version: 2,
       onCreate: _onCreate,
+      onUpgrade: _onUpgrade,
     );
+  }
+
+  Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS notifications (
+          id INTEGER PRIMARY KEY,
+          title TEXT NOT NULL,
+          message TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          is_read INTEGER DEFAULT 0
+        )
+      ''');
+    }
   }
 
   Future<void> _onCreate(Database db, int version) async {
@@ -101,6 +116,16 @@ class DatabaseHelper {
         otp_code INTEGER NOT NULL,
         time TEXT NOT NULL,
         status INTEGER NOT NULL
+      )
+    ''');
+
+    await db.execute('''
+      CREATE TABLE notifications (
+        id INTEGER PRIMARY KEY,
+        title TEXT NOT NULL,
+        message TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        is_read INTEGER DEFAULT 0
       )
     ''');
 
@@ -183,5 +208,41 @@ class DatabaseHelper {
   Future<int> requestPayout(PayoutRequest request) async {
     Database db = await database;
     return await db.insert('payout_request', request.toJson());
+  }
+
+  // Notification Operations
+  Future<int> insertNotification(Map<String, dynamic> notification) async {
+    Database db = await database;
+    return await db.insert('notifications', {
+      'id': int.tryParse(notification['id'].toString()) ?? 0,
+      'title': notification['title'],
+      'message': notification['message'],
+      'created_at': notification['created_at'],
+      'is_read': notification['is_read'] ?? 0,
+    }, conflictAlgorithm: ConflictAlgorithm.replace);
+  }
+
+  Future<List<Map<String, dynamic>>> getNotifications() async {
+    Database db = await database;
+    return await db.query('notifications', orderBy: 'id DESC');
+  }
+
+  Future<int> markNotificationsRead() async {
+    Database db = await database;
+    return await db.update('notifications', {'is_read': 1});
+  }
+
+  Future<int?> getLastNotificationId() async {
+    Database db = await database;
+    List<Map<String, dynamic>> result = await db.query(
+      'notifications',
+      columns: ['id'],
+      orderBy: 'id DESC',
+      limit: 1,
+    );
+    if (result.isNotEmpty) {
+      return result.first['id'] as int?;
+    }
+    return null;
   }
 }
