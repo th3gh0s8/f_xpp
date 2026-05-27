@@ -54,14 +54,13 @@ class ApiService {
     try {
       final response = await http.post(
         Uri.parse('$baseUrl/register_partner.php'),
-        body: json.encode(partner.toJson()),
-        headers: {'Content-Type': 'application/json'},
+        body: partner.toJson(), // http.post automatically form-encodes Maps
       );
 
       if (response.statusCode == 200) {
         print('DEBUG: [registerPartner] Raw Body: ${response.body}');
         final data = json.decode(response.body);
-        return data['success'];
+        return data['success'] == true;
       }
     } catch (e) {
       print('API Error (registerPartner): $e');
@@ -324,6 +323,20 @@ class ApiService {
       }
     } catch (e) {
       print('API Error (Update FCM Token): $e');
+    }
+    return false;
+  }
+
+  Future<bool> deleteFcmToken(String token) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/delete_fcm_token.php'),
+        body: json.encode({'fcm_token': token}),
+        headers: {'Content-Type': 'application/json'},
+      );
+      return response.statusCode == 200 && json.decode(response.body)['success'] == true;
+    } catch (e) {
+      print('API Error (Delete FCM Token): $e');
     }
     return false;
   }
