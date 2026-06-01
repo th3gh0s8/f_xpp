@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:workmanager/workmanager.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'firebase_options.dart';
 import 'login_page.dart';
 import 'dashboard_page.dart';
@@ -57,7 +58,8 @@ void callbackDispatcher() {
 }
 
 void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
+  WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
+  FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
 
   // Init Firebase
   await Firebase.initializeApp(
@@ -88,6 +90,11 @@ void main() async {
     systemNavigationBarColor: Colors.transparent,
     systemNavigationBarIconBrightness: Brightness.dark,
   ));
+
+  // Small delay to ensure splash is visible for at least a moment on fast devices
+  await Future.delayed(const Duration(seconds: 1));
+  FlutterNativeSplash.remove();
+
   runApp(const MyApp());
 }
 
@@ -156,7 +163,7 @@ class _MyAppState extends State<MyApp> {
         systemNavigationBarIconBrightness: Brightness.dark,
       ),
       child: MaterialApp(
-        title: 'xPower Partners',
+        title: 'xPower Advisor',
         debugShowCheckedModeBanner: false,
         theme: _buildTheme(),
         home: FutureBuilder<String?>(
