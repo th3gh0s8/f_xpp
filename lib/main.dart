@@ -4,14 +4,12 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:workmanager/workmanager.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'firebase_options.dart';
-import 'login_page.dart';
-import 'dashboard_page.dart';
 import 'services/session_manager.dart';
 import 'services/notification_service.dart';
 import 'services/api_service.dart';
 import 'database/database_helper.dart';
+import 'splash_screen.dart';
 
 @pragma('vm:entry-point')
 void callbackDispatcher() {
@@ -58,8 +56,7 @@ void callbackDispatcher() {
 }
 
 void main() async {
-  WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
-  FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
+  WidgetsFlutterBinding.ensureInitialized();
 
   // Init Firebase
   await Firebase.initializeApp(
@@ -69,8 +66,6 @@ void main() async {
   await NotificationService().init();
   await Workmanager().initialize(callbackDispatcher);
   
-  // NOTE: WorkManager periodic tasks have a hard 15m limit from Android.
-  // To get faster, we must trigger from the server side (FCM).
   await Workmanager().registerPeriodicTask(
     "xpower_notification_fetch",
     "fetch_notifications_task",
@@ -78,7 +73,7 @@ void main() async {
     existingWorkPolicy: ExistingPeriodicWorkPolicy.replace,
     constraints: Constraints(
       networkType: NetworkType.connected,
-      requiresBatteryNotLow: false, // Relaxed constraint
+      requiresBatteryNotLow: false,
     ),
   );
 
@@ -162,33 +157,7 @@ class _MyAppState extends State<MyApp> {
         title: 'xPower Advisor',
         debugShowCheckedModeBanner: false,
         theme: _buildTheme(),
-        home: FutureBuilder<String?>(
-          future: SessionManager.getSession(),
-          builder: (context, snapshot) {
-            if (snapshot.connectionState != ConnectionState.waiting) {
-              FlutterNativeSplash.remove();
-            }
-
-            WidgetsBinding.instance.addPostFrameCallback((_) async {
-              final service = NotificationService();
-              if (!(await service.checkNotificationPermission())) {
-                if (context.mounted) {
-                  service.requestPermissions(context);
-                }
-              }
-            });
-
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Scaffold(
-                body: Center(child: CircularProgressIndicator(color: Colors.black)),
-              );
-            }
-            if (snapshot.hasData && snapshot.data != null && snapshot.data!.isNotEmpty) {
-              return DashboardPage(phoneNumber: snapshot.data!);
-            }
-            return const LoginPage();
-          },
-        ),
+        home: const SplashScreen(),
       ),
     );
   }
