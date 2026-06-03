@@ -1,25 +1,26 @@
 flutter_native_splash:
-  # 1. Pure white background for light mode
   color: "#ffffff"
-  
-  # 2. Force pure white background for dark mode (overwrites system default)
   color_dark: "#ffffff"
 
-  # 3. Square emblem asset (prevents stretching/warping)
+  # 1. Center Icon: Standalone graphic, NO text (fits circular mask)
   image: assets/emblem_square.png
+
+  # 2. Branding: Full logo with text at the bottom
+  branding: assets/branding.png
+  branding_dark: assets/branding.png
 
   android: true
   ios: true
   fullscreen: true
 
-  # 4. Android 12+ specific configuration (Disables dark mode overrides)
+  # 3. Android 12+ specific configuration
   android_12:
     image: assets/emblem_square.png
+    branding: assets/branding.png
     color: "#ffffff"
     color_dark: "#ffffff"
     icon_background_color: "#ffffff"
     icon_background_color_dark: "#ffffff"
 
-  # Keep image centered and unscaled to prevent cropping/warping
   android_gravity: center
   ios_content_mode: center
