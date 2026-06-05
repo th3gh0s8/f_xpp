@@ -1,8 +1,7 @@
-<?php include 'header.php'; ?>
-
 <?php
 $id = (int)($_GET['id'] ?? 0);
 if ($id == 0) { header("Location: customers.php"); exit; }
+ob_start(); include 'header.php';
 
 // Fetch schema to build form dynamically
 $result_meta = $conn->query("SELECT * FROM new_clients LIMIT 1");
@@ -34,7 +33,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $stmt->bind_param($types, ...$values);
     
     if ($stmt->execute()) {
-        echo "<div class='alert alert-success'>Customer updated successfully!</div>";
+        header("Location: customers.php?msg=updated");
+        exit;
     } else {
         echo "<div class='alert alert-danger'>Update failed: " . $conn->error . "</div>";
     }

@@ -1,4 +1,4 @@
-<?php include 'header.php'; ?>
+<?php ob_start(); include 'header.php'; ?>
 
 <?php
 $id = (int)($_GET['id'] ?? 0);

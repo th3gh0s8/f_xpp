@@ -1,16 +1,26 @@
-<?php include 'header.php'; ?>
+<?php
+ob_start(); include 'header.php';
+?>
 
 <?php
 if (isset($_GET['authorize'])) {
-    $id = (int)$_GET['authorize'];
-    $conn->query("UPDATE partners SET status = 'authorized' WHERE ID = $id");
+    $id = $_GET['authorize'];
+
+    $stmt = $conn->prepare("UPDATE partners SET status = 'authorized' WHERE ID = ?");
+    $stmt->bind_param("i", $id);
+    $stmt->execute();
+    $stmt->close();
+
     header("Location: partners.php?msg=authorized");
     exit;
 }
 
 $sort = $_GET['sort'] ?? 'ID';
-$order = $_GET['order'] ?? 'DESC';
+$order = (strtoupper($_GET['order'] ?? 'DESC') === 'ASC') ? 'ASC' : 'DESC';
 
+// Fetch all column names for sorting validation and headers
+$result_meta = $conn->query("SELECT * FROM partners LIMIT 1");
+// ... (the rest of your code remains exactly the same) ...
 // Fetch all column names for sorting validation and headers
 $result_meta = $conn->query("SELECT * FROM partners LIMIT 1");
 $fields = $result_meta->fetch_fields();
@@ -46,9 +56,9 @@ $result = $conn->query($sql);
                 <?php foreach ($fields as $field): ?>
                     <th class="text-nowrap">
                         <a href="?sort=<?php echo $field->name; ?>&order=<?php echo $next_order; ?>" class="text-white text-decoration-none">
-                            <?php 
+                            <?php
                                 $label = str_replace('_', ' ', $field->name);
-                                echo ucwords($label); 
+                                echo ucwords($label);
                             ?>
                             <?php if ($sort == $field->name): ?>
                                 <i class="bi bi-caret-<?php echo ($order == 'ASC') ? 'up' : 'down'; ?>-fill"></i>
@@ -65,7 +75,7 @@ $result = $conn->query($sql);
                 <tr>
                     <?php foreach ($fields as $field): ?>
                         <td>
-                            <?php 
+                            <?php
                                 $val = $row[$field->name];
                                 if ($field->name == 'status') {
                                     $cls = ($val == 'authorized') ? 'bg-success' : (($val == 'pending') ? 'bg-warning text-dark' : 'bg-danger');

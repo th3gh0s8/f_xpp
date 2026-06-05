@@ -1,4 +1,4 @@
-<?php include 'header.php'; ?>
+<?php ob_start(); include 'header.php'; ?>
 
 <?php
 $sort = $_GET['sort'] ?? 'ID';

@@ -1,4 +1,4 @@
-<?php include 'header.php'; ?>
+<?php ob_start(); include 'header.php'; ?>
 
 <?php
 // Ensure tables exist
@@ -42,9 +42,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['send_notification'])) 
     if ($stmt->execute()) {
         require_once '../fcm_helper.php';
         pushToPartner($conn, $partner_id, $title, $message);
-        echo "<div class='alert alert-success'>Notification sent successfully! (FCM triggered)</div>";
+        header("Location: notifications.php?msg=sent");
+        exit;
     } else {
-
         echo "<div class='alert alert-danger'>Failed to send notification: " . $conn->error . "</div>";
     }
 }

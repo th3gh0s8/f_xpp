@@ -25,6 +25,12 @@ class _NotificationsPageState extends State<NotificationsPage> {
     _loadNotifications();
   }
 
+  @override
+  void reassemble() {
+    super.reassemble();
+    _loadNotifications();
+  }
+
   Future<void> _loadNotifications() async {
     setState(() => _isLoading = true);
     

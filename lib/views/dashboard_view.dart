@@ -10,10 +10,16 @@ import 'notifications_page.dart';
 import '../database/database_helper.dart';
 import '../utils/format_utils.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
 
 class DashboardView extends StatefulWidget {
   final String phoneNumber;
-  const DashboardView({super.key, required this.phoneNumber});
+  final bool isActive;
+  const DashboardView({
+    super.key,
+    required this.phoneNumber,
+    required this.isActive,
+  });
 
   @override
   State<DashboardView> createState() => _DashboardViewState();
@@ -40,8 +46,25 @@ class _DashboardViewState extends State<DashboardView>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _loadCachedData();
     _loadData();
     DatabaseHelper().refreshNotificationStream();
+  }
+
+  @override
+  void reassemble() {
+    super.reassemble();
+    _loadData(isSilent: true);
+    DatabaseHelper().refreshNotificationStream();
+  }
+
+  @override
+  void didUpdateWidget(covariant DashboardView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Reload when tab becomes active
+    if (widget.isActive && !oldWidget.isActive) {
+      _loadData(isSilent: true);
+    }
   }
 
   @override
@@ -51,9 +74,41 @@ class _DashboardViewState extends State<DashboardView>
     super.dispose();
   }
 
+  Future<void> _loadCachedData() async {
+    // 1. Load profile details from SQLite DB
+    final cachedPartner = await DatabaseHelper().getPartner(widget.phoneNumber);
+    if (mounted && cachedPartner != null) {
+      setState(() {
+        _partner = cachedPartner;
+      });
+    }
+
+    // 2. Load stats from SharedPreferences
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final cachedRaw = prefs.getString(
+        'cached_dashboard_${widget.phoneNumber}',
+      );
+      if (cachedRaw != null) {
+        final decoded = json.decode(cachedRaw) as Map<String, dynamic>;
+        if (mounted) {
+          setState(() {
+            _dashboardData = decoded;
+            _isLoading =
+                false; // We found cached data, so hide initial spinner!
+          });
+          DatabaseHelper().updateDashboard(decoded);
+        }
+      }
+    } catch (e) {
+      debugPrint('Error loading cached dashboard: $e');
+    }
+  }
+
   Future<void> _loadData({bool isSilent = false}) async {
     final mobileNo = widget.phoneNumber;
-    if (!isSilent && mounted) setState(() => _isLoading = true);
+    if (!isSilent && mounted && _dashboardData == null)
+      setState(() => _isLoading = true);
 
     try {
       // 1. Fetch main dashboard and invoices in parallel for speed
@@ -64,6 +119,14 @@ class _DashboardViewState extends State<DashboardView>
 
       final data = results[0] as Map<String, dynamic>?;
       final invoices = results[1] as List<dynamic>? ?? [];
+
+      if (data != null) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString(
+          'cached_dashboard_${widget.phoneNumber}',
+          json.encode(data),
+        );
+      }
 
       if (mounted) {
         setState(() {

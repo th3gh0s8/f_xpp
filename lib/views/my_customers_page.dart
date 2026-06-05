@@ -26,6 +26,12 @@ class _MyCustomersPageState extends State<MyCustomersPage> {
     _fetchCustomers();
   }
 
+  @override
+  void reassemble() {
+    super.reassemble();
+    _fetchCustomers();
+  }
+
   Future<void> _fetchCustomers() async {
     if (!mounted) return;
     setState(() => _isLoading = true);

@@ -7,7 +7,12 @@ import '../utils/format_utils.dart';
 
 class InvoicesView extends StatefulWidget {
   final String phoneNumber;
-  const InvoicesView({super.key, required this.phoneNumber});
+  final bool isActive;
+  const InvoicesView({
+    super.key,
+    required this.phoneNumber,
+    required this.isActive,
+  });
 
   @override
   State<InvoicesView> createState() => _InvoicesViewState();
@@ -24,6 +29,20 @@ class _InvoicesViewState extends State<InvoicesView> {
     _fetchInvoices();
   }
 
+  @override
+  void reassemble() {
+    super.reassemble();
+    _fetchInvoices();
+  }
+
+  @override
+  void didUpdateWidget(covariant InvoicesView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.isActive && !oldWidget.isActive) {
+      _fetchInvoices();
+    }
+  }
+
   Future<void> _fetchInvoices() async {
     if (!mounted) return;
     final mobileNo = widget.phoneNumber;
@@ -38,13 +57,25 @@ class _InvoicesViewState extends State<InvoicesView> {
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) return const SystemOverlayWrapper(child: Scaffold(body: Center(child: CircularProgressIndicator(color: Colors.black))));
+    if (_isLoading)
+      return const SystemOverlayWrapper(
+        child: Scaffold(
+          body: Center(child: CircularProgressIndicator(color: Colors.black)),
+        ),
+      );
 
     return SystemOverlayWrapper(
       child: Scaffold(
         backgroundColor: const Color(0xFFF8F8F8),
         appBar: AppBar(
-          title: const Text('ALL INVOICES', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 14, letterSpacing: 1.5)),
+          title: const Text(
+            'ALL INVOICES',
+            style: TextStyle(
+              fontWeight: FontWeight.w900,
+              fontSize: 14,
+              letterSpacing: 1.5,
+            ),
+          ),
           automaticallyImplyLeading: false, // Prevent accidental back button
         ),
         body: RefreshIndicator(
@@ -56,7 +87,15 @@ class _InvoicesViewState extends State<InvoicesView> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('TRACK YOUR SALES AND COMMISSIONS', style: TextStyle(fontSize: 12, color: Colors.black38, fontWeight: FontWeight.w900, letterSpacing: 1.5)),
+                const Text(
+                  'TRACK YOUR SALES AND COMMISSIONS',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.black38,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 1.5,
+                  ),
+                ),
                 const SizedBox(height: 24),
                 if (_invoices.isEmpty)
                   const Center(child: Text('NO INVOICES FOUND'))
@@ -82,8 +121,10 @@ class _InvoicesViewState extends State<InvoicesView> {
           color: Colors.transparent,
           child: InkWell(
             onTap: () => Navigator.push(
-              context, 
-              MaterialPageRoute(builder: (context) => InvoiceDetailsPage(invoice: invoice))
+              context,
+              MaterialPageRoute(
+                builder: (context) => InvoiceDetailsPage(invoice: invoice),
+              ),
             ),
             borderRadius: BorderRadius.circular(16),
             child: Container(
@@ -91,7 +132,10 @@ class _InvoicesViewState extends State<InvoicesView> {
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.black.withOpacity(0.05), width: 1),
+                border: Border.all(
+                  color: Colors.black.withOpacity(0.05),
+                  width: 1,
+                ),
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withOpacity(0.02),
@@ -111,7 +155,11 @@ class _InvoicesViewState extends State<InvoicesView> {
                           color: Colors.black.withOpacity(0.03),
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        child: const Icon(Icons.receipt_long_rounded, size: 20, color: Colors.black),
+                        child: const Icon(
+                          Icons.receipt_long_rounded,
+                          size: 20,
+                          color: Colors.black,
+                        ),
                       ),
                       const SizedBox(width: 16),
                       Column(
@@ -119,12 +167,20 @@ class _InvoicesViewState extends State<InvoicesView> {
                         children: [
                           Text(
                             'INV-${invoice.id}',
-                            style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 14, letterSpacing: -0.2),
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w900,
+                              fontSize: 14,
+                              letterSpacing: -0.2,
+                            ),
                           ),
                           const SizedBox(height: 4),
                           Text(
                             '${invoice.date.toString().split(' ')[0]}',
-                            style: TextStyle(fontSize: 11, color: Colors.black.withOpacity(0.3), fontWeight: FontWeight.w700),
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: Colors.black.withOpacity(0.3),
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
                         ],
                       ),
@@ -134,13 +190,24 @@ class _InvoicesViewState extends State<InvoicesView> {
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
                       Text(
-                        FormatUtils.formatCurrency(invoice.comAmount.toDouble()),
-                        style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 15, letterSpacing: -0.5),
+                        FormatUtils.formatCurrency(
+                          invoice.comAmount.toDouble(),
+                        ),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w900,
+                          fontSize: 15,
+                          letterSpacing: -0.5,
+                        ),
                       ),
                       const SizedBox(height: 4),
                       const Text(
                         'COMMISSION',
-                        style: TextStyle(fontSize: 8, fontWeight: FontWeight.w900, letterSpacing: 0.5, color: Colors.green),
+                        style: TextStyle(
+                          fontSize: 8,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 0.5,
+                          color: Colors.green,
+                        ),
                       ),
                     ],
                   ),

@@ -174,7 +174,10 @@ class ApiService {
 
   Future<Map<String, dynamic>?> getDashboardData(String mobileNo) async {
     try {
-      final response = await http.get(Uri.parse('$baseUrl/get_dashboard_data.php?mobile_no=$mobileNo'));
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final response = await http.get(
+        Uri.parse('$baseUrl/get_dashboard_data.php?mobile_no=$mobileNo&t=$timestamp'),
+      );
       if (response.statusCode == 200) {
         print('DEBUG: [getDashboardData] Raw Body: ${response.body}');
         return json.decode(response.body)['data'];

@@ -53,10 +53,25 @@ class _DashboardPageState extends State<DashboardPage> {
           child: IndexedStack(
             index: _selectedIndex,
             children: [
-              DashboardView(key: _dashboardKey, phoneNumber: widget.phoneNumber),
-              InvoicesView(phoneNumber: widget.phoneNumber),
-              PayoutsView(phoneNumber: widget.phoneNumber),
-              ProfileView(key: _profileKey, phoneNumber: widget.phoneNumber, onProfileUpdated: _refreshAll),
+              DashboardView(
+                key: _dashboardKey,
+                phoneNumber: widget.phoneNumber,
+                isActive: _selectedIndex == 0,
+              ),
+              InvoicesView(
+                phoneNumber: widget.phoneNumber,
+                isActive: _selectedIndex == 1,
+              ),
+              PayoutsView(
+                phoneNumber: widget.phoneNumber,
+                isActive: _selectedIndex == 2,
+              ),
+              ProfileView(
+                key: _profileKey,
+                phoneNumber: widget.phoneNumber,
+                onProfileUpdated: _refreshAll,
+                isActive: _selectedIndex == 3,
+              ),
             ],
           ),
         ),
@@ -64,9 +79,12 @@ class _DashboardPageState extends State<DashboardPage> {
           onPressed: () async {
             final result = await Navigator.push(
               context,
-              MaterialPageRoute(builder: (context) => AddCustomerPage(phoneNumber: widget.phoneNumber)),
+              MaterialPageRoute(
+                builder: (context) =>
+                    AddCustomerPage(phoneNumber: widget.phoneNumber),
+              ),
             );
-            
+
             if (result == true) {
               setState(() {
                 _selectedIndex = 0;

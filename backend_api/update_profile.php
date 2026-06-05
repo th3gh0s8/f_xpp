@@ -1,6 +1,11 @@
 <?php
 require_once 'cors_headers.php';
-
+// Support both JSON and form-encoded POST
+$rawBody = file_get_contents('php://input');
+$json = json_decode($rawBody, true);
+if ($json) {
+    $_POST = array_merge($_POST, $json);
+}
 if (file_exists('db/db_config.php')) {
     require_once 'db/db_config.php';
 } elseif (file_exists('db_config.php')) {
