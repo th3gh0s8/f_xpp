@@ -19,7 +19,8 @@ class DashboardView extends StatefulWidget {
   State<DashboardView> createState() => _DashboardViewState();
 }
 
-class _DashboardViewState extends State<DashboardView> {
+class _DashboardViewState extends State<DashboardView>
+    with WidgetsBindingObserver {
   final ApiService _apiService = ApiService();
   Map<String, dynamic>? _dashboardData;
   List<dynamic> _recentInvoices = [];
@@ -28,14 +29,24 @@ class _DashboardViewState extends State<DashboardView> {
   Timer? _pollingTimer;
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      debugPrint('App Resumed: Refreshing Dashboard...');
+      _loadData(isSilent: true); // Fetch data without showing loader
+    }
+  }
+
+  @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadData();
-    // Removed redundant polling as it's handled in main.dart
+    DatabaseHelper().refreshNotificationStream();
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _pollingTimer?.cancel();
     super.dispose();
   }
@@ -43,7 +54,7 @@ class _DashboardViewState extends State<DashboardView> {
   Future<void> _loadData({bool isSilent = false}) async {
     final mobileNo = widget.phoneNumber;
     if (!isSilent && mounted) setState(() => _isLoading = true);
-    
+
     try {
       // 1. Fetch main dashboard and invoices in parallel for speed
       final results = await Future.wait([
@@ -60,6 +71,7 @@ class _DashboardViewState extends State<DashboardView> {
           _recentInvoices = invoices;
           if (!isSilent) _isLoading = false;
         });
+        DatabaseHelper().updateDashboard(data);
       }
 
       // 2. Sync profile in background (trigger StreamBuilder)
@@ -72,9 +84,14 @@ class _DashboardViewState extends State<DashboardView> {
 
       // 3. Trigger foreground notification check
       if (data != null && data['unread_notifications'] != null) {
-        int currentUnread = int.tryParse(data['unread_notifications'].toString()) ?? 0;
-        int prevUnread = int.tryParse(_dashboardData?['unread_notifications']?.toString() ?? '0') ?? 0;
-        
+        int currentUnread =
+            int.tryParse(data['unread_notifications'].toString()) ?? 0;
+        int prevUnread =
+            int.tryParse(
+              _dashboardData?['unread_notifications']?.toString() ?? '0',
+            ) ??
+            0;
+
         if (currentUnread > prevUnread) {
           _checkAndShowForegroundNotification();
         }
@@ -87,14 +104,16 @@ class _DashboardViewState extends State<DashboardView> {
   }
 
   Future<void> _checkAndShowForegroundNotification() async {
-    final notifications = await _apiService.getNotifications(widget.phoneNumber);
+    final notifications = await _apiService.getNotifications(
+      widget.phoneNumber,
+    );
     if (notifications.isNotEmpty) {
       final latest = notifications.first;
       final latestId = int.tryParse(latest['id'].toString()) ?? 0;
-      
+
       final prefs = await SharedPreferences.getInstance();
       final lastNotified = prefs.getInt('last_notified_id') ?? 0;
-      
+
       if (latestId > lastNotified) {
         await NotificationService().showNotification(
           id: latestId,
@@ -108,9 +127,12 @@ class _DashboardViewState extends State<DashboardView> {
 
   List<Color> _getLevelColors(String level) {
     switch (level.toUpperCase()) {
-      case 'MASTER': return [const Color(0xFFC62828), const Color(0xFF8E0000)]; 
-      case 'ADVISOR': return [const Color(0xFF2E7D32), const Color(0xFF1B5E20)]; 
-      default: return [const Color(0xFF9C27B0), const Color(0xFF6A1B9A)]; 
+      case 'MASTER':
+        return [const Color(0xFFC62828), const Color(0xFF8E0000)];
+      case 'ADVISOR':
+        return [const Color(0xFF2E7D32), const Color(0xFF1B5E20)];
+      default:
+        return [const Color(0xFF9C27B0), const Color(0xFF6A1B9A)];
     }
   }
 
@@ -128,25 +150,46 @@ class _DashboardViewState extends State<DashboardView> {
               onRefresh: _loadData,
               color: Colors.black,
               child: _isLoading && _dashboardData == null
-                  ? const Center(child: CircularProgressIndicator(color: Colors.black))
+                  ? const Center(
+                      child: CircularProgressIndicator(color: Colors.black),
+                    )
                   : SingleChildScrollView(
                       physics: const AlwaysScrollableScrollPhysics(),
                       padding: const EdgeInsets.all(24.0),
                       child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           _buildWelcomeSection(partner),
                           const SizedBox(height: 32),
-                          _buildStatsGrid(),
-                          const SizedBox(height: 32),
-                          _buildLevelProgress(),
+
+                          StreamBuilder<Map<String, dynamic>?>(
+                            stream: DatabaseHelper().dashboardStream,
+                            initialData: _dashboardData,
+                            builder: (context, snapshot) {
+                              final liveData = snapshot.data;
+                              return Column(
+                                children: [
+                                  _buildStatsGrid(liveData), // Uses live data!
+                                  const SizedBox(height: 32),
+                                  _buildLevelProgress(
+                                    liveData,
+                                  ), // Uses live data!
+                                ],
+                              );
+                            },
+                          ),
+
                           const SizedBox(height: 40),
                           const Text(
                             'RECENT ACTIVITY',
-                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900, letterSpacing: 1.5, color: Colors.black38),
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 1.5,
+                              color: Colors.black38,
+                            ),
                           ),
                           const SizedBox(height: 16),
-                          _buildInvoicesList(),
+                          _buildInvoicesList(), // Restored!
                         ],
                       ),
                     ),
@@ -167,14 +210,21 @@ class _DashboardViewState extends State<DashboardView> {
           children: [
             Text(
               hasPartner ? 'WELCOME BACK,' : 'WELCOME,',
-              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900, letterSpacing: 1, color: Colors.black.withOpacity(0.4)),
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 1,
+                color: Colors.black.withOpacity(0.4),
+              ),
             ),
             const SizedBox(height: 4),
             Text(
-              hasPartner ? '${partner.firstName} ${partner.lastName}'.toUpperCase() : (partner?.mobileNo ?? widget.phoneNumber),
+              hasPartner
+                  ? '${partner.firstName} ${partner.lastName}'.toUpperCase()
+                  : (partner?.mobileNo ?? widget.phoneNumber),
               style: TextStyle(
-                fontSize: hasPartner ? 28 : 20, 
-                fontWeight: FontWeight.w900, 
+                fontSize: hasPartner ? 28 : 20,
+                fontWeight: FontWeight.w900,
                 letterSpacing: hasPartner ? -1 : 0,
                 color: hasPartner ? Colors.black : Colors.black54,
               ),
@@ -190,7 +240,10 @@ class _DashboardViewState extends State<DashboardView> {
             return IconButton(
               onPressed: () => Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => NotificationsPage(mobileNo: widget.phoneNumber)),
+                MaterialPageRoute(
+                  builder: (context) =>
+                      NotificationsPage(mobileNo: widget.phoneNumber),
+                ),
               ),
               icon: Stack(
                 clipBehavior: Clip.none,
@@ -202,7 +255,11 @@ class _DashboardViewState extends State<DashboardView> {
                       shape: BoxShape.circle,
                       border: Border.all(color: Colors.black.withOpacity(0.05)),
                     ),
-                    child: const Icon(Icons.notifications_none_rounded, size: 24, color: Colors.black),
+                    child: const Icon(
+                      Icons.notifications_none_rounded,
+                      size: 24,
+                      color: Colors.black,
+                    ),
                   ),
                   if (unreadCount > 0)
                     Positioned(
@@ -210,11 +267,21 @@ class _DashboardViewState extends State<DashboardView> {
                       top: -2,
                       child: Container(
                         padding: const EdgeInsets.all(4),
-                        decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
-                        constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                        decoration: const BoxDecoration(
+                          color: Colors.red,
+                          shape: BoxShape.circle,
+                        ),
+                        constraints: const BoxConstraints(
+                          minWidth: 16,
+                          minHeight: 16,
+                        ),
                         child: Text(
                           '$unreadCount',
-                          style: const TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 8,
+                            fontWeight: FontWeight.bold,
+                          ),
                           textAlign: TextAlign.center,
                         ),
                       ),
@@ -222,19 +289,21 @@ class _DashboardViewState extends State<DashboardView> {
                 ],
               ),
             );
-          }
+          },
         ),
       ],
     );
   }
 
-  Widget _buildStatsGrid() {
-    final data = _dashboardData;
-    int totalCustomers = int.tryParse(data?['total_customers']?.toString() ?? '0') ?? 0;
-    double pending = double.tryParse(data?['pending_payouts']?.toString() ?? '0') ?? 0;
-    double available = double.tryParse(data?['available_balance']?.toString() ?? '0') ?? 0;
+  Widget _buildStatsGrid(Map<String, dynamic>? data) {
+    int totalCustomers =
+        int.tryParse(data?['total_customers']?.toString() ?? '0') ?? 0;
+    double pending =
+        double.tryParse(data?['pending_payouts']?.toString() ?? '0') ?? 0;
+    double available =
+        double.tryParse(data?['available_balance']?.toString() ?? '0') ?? 0;
     String apiLevel = data?['level']?.toString() ?? 'ASSOCIATE';
-    
+
     return GridView.count(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
@@ -244,52 +313,54 @@ class _DashboardViewState extends State<DashboardView> {
       childAspectRatio: 1.4,
       children: [
         _buildStatCard(
-          'AVAILABLE BALANCE', 
+          'AVAILABLE BALANCE',
           FormatUtils.formatCurrency(available),
           [const Color(0xFF212121), Colors.black],
           Colors.white,
         ),
+        _buildStatCard('PENDING', FormatUtils.formatCurrency(pending), [
+          const Color(0xFF424242),
+          const Color(0xFF212121),
+        ], Colors.white),
         _buildStatCard(
-          'PENDING', 
-          FormatUtils.formatCurrency(pending),
-          [const Color(0xFF424242), const Color(0xFF212121)],
-          Colors.white,
-        ),
-        _buildStatCard(
-          'STATUS', 
+          'STATUS',
           apiLevel.toUpperCase(),
           _getLevelColors(apiLevel),
           Colors.white,
         ),
         GestureDetector(
           onTap: () => Navigator.push(
-            context, 
-            MaterialPageRoute(builder: (context) => MyCustomersPage(phoneNumber: widget.phoneNumber))
+            context,
+            MaterialPageRoute(
+              builder: (context) =>
+                  MyCustomersPage(phoneNumber: widget.phoneNumber),
+            ),
           ),
-          child: _buildStatCard(
-            'ACTIVE CLIENTS',
-            '$totalCustomers',
-            [const Color(0xFF212121), Colors.black],
-            Colors.white,
-          ),
+          child: _buildStatCard('ACTIVE CLIENTS', '$totalCustomers', [
+            const Color(0xFF212121),
+            Colors.black,
+          ], Colors.white),
         ),
       ],
     );
   }
 
-  Widget _buildLevelProgress() {
-    final data = _dashboardData;
-    int totalCustomers = int.tryParse(data?['total_customers']?.toString() ?? '0') ?? 0;
-    
+  Widget _buildLevelProgress(Map<String, dynamic>? data) {
+    int totalCustomers =
+        int.tryParse(data?['total_customers']?.toString() ?? '0') ?? 0;
+
     // Ensure progress is at least visible if there are customers
-    double progress = (totalCustomers / 250).clamp(0.01, 1.0); 
+    double progress = (totalCustomers / 250).clamp(0.01, 1.0);
     if (totalCustomers == 0) progress = 0.0;
 
     String apiLevel = data?['level']?.toString() ?? 'ASSOCIATE';
     List<Color> levelColors = _getLevelColors(apiLevel);
 
     return GestureDetector(
-      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const LevelBenefitsPage())),
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => const LevelBenefitsPage()),
+      ),
       behavior: HitTestBehavior.opaque,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -298,12 +369,22 @@ class _DashboardViewState extends State<DashboardView> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'PARTNER GROWTH', 
-                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w900, letterSpacing: 1.5, color: Colors.black38),
+                'PARTNER GROWTH',
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 1.5,
+                  color: Colors.black38,
+                ),
               ),
               const Text(
                 'VIEW DETAILS',
-                style: TextStyle(fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 1, color: Colors.black),
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 1,
+                  color: Colors.black,
+                ),
               ),
             ],
           ),
@@ -326,8 +407,12 @@ class _DashboardViewState extends State<DashboardView> {
                     gradient: LinearGradient(colors: levelColors),
                     borderRadius: BorderRadius.circular(6),
                     boxShadow: [
-                      BoxShadow(color: levelColors[0].withOpacity(0.3), blurRadius: 4, offset: const Offset(0, 2))
-                    ]
+                      BoxShadow(
+                        color: levelColors[0].withOpacity(0.3),
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -347,7 +432,12 @@ class _DashboardViewState extends State<DashboardView> {
     );
   }
 
-  Widget _buildStatCard(String label, String value, List<Color> colors, Color textColor) {
+  Widget _buildStatCard(
+    String label,
+    String value,
+    List<Color> colors,
+    Color textColor,
+  ) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -364,15 +454,25 @@ class _DashboardViewState extends State<DashboardView> {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Text(
-            label, 
-            style: TextStyle(fontSize: 9, fontWeight: FontWeight.w900, letterSpacing: 0.5, color: textColor.withOpacity(0.5))
+            label,
+            style: TextStyle(
+              fontSize: 9,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 0.5,
+              color: textColor.withOpacity(0.5),
+            ),
           ),
           const SizedBox(height: 8),
           FittedBox(
             child: Text(
-              value, 
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: textColor, letterSpacing: -0.5)
-            )
+              value,
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w900,
+                color: textColor,
+                letterSpacing: -0.5,
+              ),
+            ),
           ),
         ],
       ),
@@ -380,8 +480,14 @@ class _DashboardViewState extends State<DashboardView> {
   }
 
   Widget _buildInvoicesList() {
-    if (_recentInvoices.isEmpty) return const Center(child: Padding(padding: EdgeInsets.all(20), child: Text('NO RECENT ACTIVITY')));
-    
+    if (_recentInvoices.isEmpty)
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(20),
+          child: Text('NO RECENT ACTIVITY'),
+        ),
+      );
+
     return ListView.separated(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
@@ -393,8 +499,10 @@ class _DashboardViewState extends State<DashboardView> {
           color: Colors.transparent,
           child: InkWell(
             onTap: () => Navigator.push(
-              context, 
-              MaterialPageRoute(builder: (context) => InvoiceDetailsPage(invoice: invoice))
+              context,
+              MaterialPageRoute(
+                builder: (context) => InvoiceDetailsPage(invoice: invoice),
+              ),
             ),
             borderRadius: BorderRadius.circular(16),
             child: Container(
@@ -402,7 +510,10 @@ class _DashboardViewState extends State<DashboardView> {
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.black.withOpacity(0.05), width: 1),
+                border: Border.all(
+                  color: Colors.black.withOpacity(0.05),
+                  width: 1,
+                ),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -410,12 +521,32 @@ class _DashboardViewState extends State<DashboardView> {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('INV-${invoice.id}', style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 14)),
+                      Text(
+                        'INV-${invoice.id}',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w900,
+                          fontSize: 14,
+                        ),
+                      ),
                       const SizedBox(height: 4),
-                      Text('${invoice.date.toString().split(' ')[0]}', style: TextStyle(fontSize: 11, color: Colors.black.withOpacity(0.3), fontWeight: FontWeight.w700)),
+                      Text(
+                        '${invoice.date.toString().split(' ')[0]}',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.black.withOpacity(0.3),
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
                     ],
                   ),
-                  Text(FormatUtils.formatCurrency(invoice.comAmount.toDouble()), style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 15, letterSpacing: -0.5)),
+                  Text(
+                    FormatUtils.formatCurrency(invoice.comAmount.toDouble()),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w900,
+                      fontSize: 15,
+                      letterSpacing: -0.5,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -435,11 +566,20 @@ class _LevelMarker extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Container(width: 6, height: 6, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+        Container(
+          width: 6,
+          height: 6,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        ),
         const SizedBox(width: 6),
         Text(
-          label, 
-          style: const TextStyle(fontSize: 8, fontWeight: FontWeight.w900, letterSpacing: 1, color: Colors.black45)
+          label,
+          style: const TextStyle(
+            fontSize: 8,
+            fontWeight: FontWeight.w900,
+            letterSpacing: 1,
+            color: Colors.black45,
+          ),
         ),
       ],
     );

@@ -1,15 +1,27 @@
-<?php include 'header.php'; ?>
+<?php
+ini_set("display_errors", 1);
+error_reporting(E_ALL);
+
+ob_start();
+include "header.php";
+?>
 
 <?php
-if (isset($_GET['activate'])) {
-    $id = (int)$_GET['activate'];
-    $conn->query("UPDATE new_clients SET status = 'active' WHERE ID = $id");
+if (isset($_GET["activate"])) {
+    $id = $_GET["activate"];
+    $stmt = $conn->prepare(
+        "UPDATE new_clients SET status = 'active' WHERE ID = ?",
+    );
+    $stmt->bind_param("i", $id);
+    $stmt->execute();
+    $stmt->close();
+
     header("Location: customers.php?msg=activated");
-    exit;
+    exit();
 }
 
-$sort = $_GET['sort'] ?? 'ID';
-$order = $_GET['order'] ?? 'DESC';
+$sort = $_GET["sort"] ?? "ID";
+$order = $_GET["order"] ?? "DESC";
 
 // Fetch all column names for sorting validation and headers
 $result_meta = $conn->query("SELECT * FROM new_clients LIMIT 1");
@@ -20,21 +32,23 @@ foreach ($fields as $field) {
 }
 
 // Add virtual columns for joined data
-$allowed_cols[] = 'partner_first';
-$allowed_cols[] = 'partner_last';
+$allowed_cols[] = "partner_first";
+$allowed_cols[] = "partner_last";
 
-if (!in_array($sort, $allowed_cols)) $sort = 'ID';
-$next_order = ($order == 'ASC') ? 'DESC' : 'ASC';
+if (!in_array($sort, $allowed_cols)) {
+    $sort = "ID";
+}
+$next_order = $order == "ASC" ? "DESC" : "ASC";
 
-$sql = "SELECT c.*, p.first_name as partner_first, p.last_name as partner_last 
-        FROM new_clients c 
-        LEFT JOIN partners p ON c.partnerTb = p.ID 
+$sql = "SELECT c.*, p.first_name as partner_first, p.last_name as partner_last
+        FROM new_clients c
+        LEFT JOIN partners p ON c.partnerTb = p.ID
         ORDER BY $sort $order";
 $result = $conn->query($sql);
 ?>
 
 <h2>Customers Management</h2>
-<?php if(isset($_GET['msg'])): ?>
+<?php if (isset($_GET["msg"])): ?>
     <div class="alert alert-success">Customer activated successfully!</div>
 <?php endif; ?>
 
@@ -50,12 +64,14 @@ $result = $conn->query($sql);
                 <?php foreach ($fields as $field): ?>
                     <th class="text-nowrap">
                         <a href="?sort=<?php echo $field->name; ?>&order=<?php echo $next_order; ?>" class="text-white text-decoration-none">
-                            <?php 
-                                $label = str_replace('_', ' ', $field->name);
-                                echo ucwords($label); 
+                            <?php
+                            $label = str_replace("_", " ", $field->name);
+                            echo ucwords($label);
                             ?>
                             <?php if ($sort == $field->name): ?>
-                                <i class="bi bi-caret-<?php echo ($order == 'ASC') ? 'up' : 'down'; ?>-fill"></i>
+                                <i class="bi bi-caret-<?php echo $order == "ASC"
+                                    ? "up"
+                                    : "down"; ?>-fill"></i>
                             <?php endif; ?>
                         </a>
                     </th>
@@ -66,38 +82,58 @@ $result = $conn->query($sql);
         </thead>
         <tbody>
             <?php if ($result->num_rows > 0): ?>
-                <?php while($row = $result->fetch_assoc()): ?>
+                <?php while ($row = $result->fetch_assoc()): ?>
                 <tr>
                     <?php foreach ($fields as $field): ?>
                         <td>
-                            <?php 
-                                $val = $row[$field->name];
-                                if ($field->name == 'status') {
-                                    $cls = ($val == 'active' || $val == 'approved') ? 'bg-success' : 'bg-warning text-dark';
-                                    echo "<span class='badge $cls'>" . strtoupper($val) . "</span>";
-                                } elseif (strlen($val) > 50) {
-                                    echo "<span title='" . htmlspecialchars($val) . "'>" . substr(htmlspecialchars($val), 0, 50) . "...</span>";
-                                } else {
-                                    echo htmlspecialchars($val);
-                                }
+                            <?php
+                            $val = $row[$field->name];
+                            if ($field->name == "status") {
+                                $cls =
+                                    $val == "active" || $val == "approved"
+                                        ? "bg-success"
+                                        : "bg-warning text-dark";
+                                echo "<span class='badge $cls'>" .
+                                    strtoupper($val) .
+                                    "</span>";
+                            } elseif (strlen($val) > 50) {
+                                echo "<span title='" .
+                                    htmlspecialchars($val) .
+                                    "'>" .
+                                    substr(htmlspecialchars($val), 0, 50) .
+                                    "...</span>";
+                            } else {
+                                echo htmlspecialchars($val);
+                            }
                             ?>
                         </td>
                     <?php endforeach; ?>
-                    <td class="text-nowrap small"><?php echo $row['partner_first'] . ' ' . $row['partner_last']; ?></td>
+                    <td class="text-nowrap small"><?php echo $row[
+                        "partner_first"
+                    ] .
+                        " " .
+                        $row["partner_last"]; ?></td>
                     <td class="text-nowrap">
-                        <?php if(strtolower($row['status'] ?? '') == 'pending'): ?>
-                            <a href="customers.php?activate=<?php echo $row['ID']; ?>" class="btn btn-sm btn-success" onclick="return confirm('Activate this customer?')">
+                        <?php if (
+                            strtolower($row["status"] ?? "") == "pending"
+                        ): ?>
+                            <a href="customers.php?activate=<?php echo $row[
+                                "ID"
+                            ]; ?>" class="btn btn-sm btn-success" onclick="return confirm('Activate this customer?')">
                                 <i class="bi bi-check-circle"></i> Activate
                             </a>
                         <?php endif; ?>
-                        <a href="edit_customer.php?id=<?php echo $row['ID']; ?>" class="btn btn-sm btn-warning">
+                        <a href="edit_customer.php?id=<?php echo $row[
+                            "ID"
+                        ]; ?>" class="btn btn-sm btn-warning">
                             <i class="bi bi-pencil-square"></i> Edit
                         </a>
                     </td>
                 </tr>
                 <?php endwhile; ?>
             <?php else: ?>
-                <tr><td colspan="<?php echo count($fields) + 2; ?>" class="text-center py-4 text-muted">No customers found</td></tr>
+                <tr><td colspan="<?php echo count($fields) +
+                    2; ?>" class="text-center py-4 text-muted">No customers found</td></tr>
             <?php endif; ?>
         </tbody>
     </table>
@@ -126,4 +162,4 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 
-<?php include 'footer.php'; ?>
+<?php include "footer.php"; ?>

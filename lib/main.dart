@@ -17,7 +17,7 @@ void callbackDispatcher() {
     try {
       WidgetsFlutterBinding.ensureInitialized();
       final phone = await SessionManager.getSession();
-      
+
       if (phone == null || phone.isEmpty) return true;
 
       final api = ApiService();
@@ -27,7 +27,7 @@ void callbackDispatcher() {
       if (notifications.isNotEmpty) {
         int? lastSeenId = await dbHelper.getLastNotificationId();
         int baseId = lastSeenId ?? 0;
-        
+
         final newNotifications = notifications.where((n) {
           final id = int.tryParse(n['id'].toString()) ?? 0;
           return id > baseId;
@@ -36,7 +36,7 @@ void callbackDispatcher() {
         if (newNotifications.isNotEmpty) {
           final ns = NotificationService();
           await ns.init();
-          
+
           for (var n in newNotifications) {
             await dbHelper.insertNotification(n);
             final id = int.tryParse(n['id'].toString()) ?? 0;
@@ -59,13 +59,11 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // Init Firebase
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   await NotificationService().init();
   await Workmanager().initialize(callbackDispatcher);
-  
+
   await Workmanager().registerPeriodicTask(
     "xpower_notification_fetch",
     "fetch_notifications_task",
@@ -78,13 +76,15 @@ void main() async {
   );
 
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
-  SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
-    statusBarColor: Colors.transparent,
-    statusBarIconBrightness: Brightness.dark,
-    statusBarBrightness: Brightness.light,
-    systemNavigationBarColor: Colors.transparent,
-    systemNavigationBarIconBrightness: Brightness.dark,
-  ));
+  SystemChrome.setSystemUIOverlayStyle(
+    const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.dark,
+      statusBarBrightness: Brightness.light,
+      systemNavigationBarColor: Colors.transparent,
+      systemNavigationBarIconBrightness: Brightness.dark,
+    ),
+  );
 
   runApp(const MyApp());
 }
@@ -106,32 +106,48 @@ class _MyAppState extends State<MyApp> {
   }
 
   void _startForegroundPolling() {
-    _foregroundTimer = Timer.periodic(const Duration(seconds: 20), (timer) async {
+    _foregroundTimer = Timer.periodic(const Duration(seconds: 6), (
+      timer,
+    ) async {
       final phone = await SessionManager.getSession();
       if (phone != null && phone.isNotEmpty) {
         final api = ApiService();
         final dbHelper = DatabaseHelper();
-        final notifications = await api.getNotifications(phone);
 
+        final dashboardData = await api.getDashboardData(phone);
+        if (dashboardData != null) {
+          DatabaseHelper().updateDashboard(dashboardData);
+        }
+        final partner = await api.getProfile(phone);
+        if (partner != null) {
+          await dbHelper.insertPartner(partner);
+        }
+        final notifications = await api.getNotifications(phone);
         if (notifications.isNotEmpty) {
+          // A. Check for BRAND NEW ones (for the popup)
           final lastSeenId = await dbHelper.getLastNotificationId() ?? 0;
-          
           final newOnes = notifications.where((n) {
             final id = int.tryParse(n['id'].toString()) ?? 0;
             return id > lastSeenId;
           }).toList();
 
-          if (newOnes.isNotEmpty) {
-            for (var n in newOnes) {
-              await dbHelper.insertNotification(n);
-              final id = int.tryParse(n['id'].toString()) ?? 0;
-              await NotificationService().showNotification(
-                id: id,
-                title: n['title'].toString().toUpperCase(),
-                body: n['message'].toString(),
-              );
-            }
+          // B. Sync ALL notifications (This updates the Badge / Read status)
+          for (var n in notifications) {
+            await dbHelper.insertNotification(n);
           }
+
+          // C. Show Popups only for the new ones
+          for (var n in newOnes) {
+            final id = int.tryParse(n['id'].toString()) ?? 0;
+            await NotificationService().showNotification(
+              id: id,
+              title: n['title'].toString().toUpperCase(),
+              body: n['message'].toString(),
+            );
+          }
+        } else {
+          // If no notifications, still refresh the UI to show 0
+          await dbHelper.refreshNotificationStream();
         }
       }
     });
@@ -180,12 +196,26 @@ class _MyAppState extends State<MyApp> {
 
     return baseTheme.copyWith(
       textTheme: GoogleFonts.manropeTextTheme(baseTheme.textTheme).copyWith(
-        displayLarge: GoogleFonts.manrope(fontWeight: FontWeight.w800, color: Colors.black, letterSpacing: -1),
-        headlineLarge: GoogleFonts.manrope(fontWeight: FontWeight.w800, color: Colors.black, letterSpacing: -0.5),
-        titleLarge: GoogleFonts.manrope(fontWeight: FontWeight.w700, color: Colors.black),
+        displayLarge: GoogleFonts.manrope(
+          fontWeight: FontWeight.w800,
+          color: Colors.black,
+          letterSpacing: -1,
+        ),
+        headlineLarge: GoogleFonts.manrope(
+          fontWeight: FontWeight.w800,
+          color: Colors.black,
+          letterSpacing: -0.5,
+        ),
+        titleLarge: GoogleFonts.manrope(
+          fontWeight: FontWeight.w700,
+          color: Colors.black,
+        ),
         bodyLarge: GoogleFonts.manrope(color: Colors.black87, fontSize: 16),
         bodyMedium: GoogleFonts.manrope(color: Colors.black87, fontSize: 14),
-        labelLarge: GoogleFonts.manrope(fontWeight: FontWeight.w700, letterSpacing: 0.5),
+        labelLarge: GoogleFonts.manrope(
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.5,
+        ),
       ),
       appBarTheme: const AppBarTheme(
         backgroundColor: Colors.transparent,
@@ -198,18 +228,31 @@ class _MyAppState extends State<MyApp> {
         fillColor: Colors.white,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.black.withOpacity(0.06), width: 1),
+          borderSide: BorderSide(
+            color: Colors.black.withOpacity(0.06),
+            width: 1,
+          ),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.black.withOpacity(0.06), width: 1),
+          borderSide: BorderSide(
+            color: Colors.black.withOpacity(0.06),
+            width: 1,
+          ),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(color: Colors.black, width: 1.5),
         ),
-        labelStyle: const TextStyle(color: Colors.black54, fontWeight: FontWeight.w600, fontSize: 12),
-        floatingLabelStyle: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+        labelStyle: const TextStyle(
+          color: Colors.black54,
+          fontWeight: FontWeight.w600,
+          fontSize: 12,
+        ),
+        floatingLabelStyle: const TextStyle(
+          color: Colors.black,
+          fontWeight: FontWeight.bold,
+        ),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
@@ -218,8 +261,14 @@ class _MyAppState extends State<MyApp> {
           minimumSize: const Size(double.infinity, 56),
           elevation: 4,
           shadowColor: Colors.black.withOpacity(0.3),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          textStyle: GoogleFonts.manrope(fontWeight: FontWeight.w800, letterSpacing: 0.5, fontSize: 15),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          textStyle: GoogleFonts.manrope(
+            fontWeight: FontWeight.w800,
+            letterSpacing: 0.5,
+            fontSize: 15,
+          ),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
@@ -227,8 +276,14 @@ class _MyAppState extends State<MyApp> {
           foregroundColor: Colors.black,
           side: BorderSide(color: Colors.black.withOpacity(0.1), width: 1.5),
           minimumSize: const Size(double.infinity, 56),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          textStyle: GoogleFonts.manrope(fontWeight: FontWeight.w800, letterSpacing: 0.5, fontSize: 15),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          textStyle: GoogleFonts.manrope(
+            fontWeight: FontWeight.w800,
+            letterSpacing: 0.5,
+            fontSize: 15,
+          ),
         ),
       ),
       cardTheme: CardThemeData(

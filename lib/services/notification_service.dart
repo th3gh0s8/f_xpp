@@ -17,7 +17,8 @@ class NotificationService {
   factory NotificationService() => _instance;
   NotificationService._internal();
 
-  final FlutterLocalNotificationsPlugin _plugin = FlutterLocalNotificationsPlugin();
+  final FlutterLocalNotificationsPlugin _plugin =
+      FlutterLocalNotificationsPlugin();
   final FirebaseMessaging _fcm = FirebaseMessaging.instance;
 
   Future<void> init() async {
@@ -26,15 +27,16 @@ class NotificationService {
 
     const DarwinInitializationSettings initializationSettingsDarwin =
         DarwinInitializationSettings(
-      requestAlertPermission: true,
-      requestBadgePermission: true,
-      requestSoundPermission: true,
-    );
+          requestAlertPermission: true,
+          requestBadgePermission: true,
+          requestSoundPermission: true,
+        );
 
-    const InitializationSettings initializationSettings = InitializationSettings(
-      android: initializationSettingsAndroid,
-      iOS: initializationSettingsDarwin,
-    );
+    const InitializationSettings initializationSettings =
+        InitializationSettings(
+          android: initializationSettingsAndroid,
+          iOS: initializationSettingsDarwin,
+        );
 
     await _plugin.initialize(
       settings: initializationSettings,
@@ -42,10 +44,15 @@ class NotificationService {
         // Handle notification click if needed
       },
     );
-
+    await FirebaseMessaging.instance
+        .setForegroundNotificationPresentationOptions(
+          alert: true,
+          badge: true,
+          sound: true,
+        );
     // FCM Setup
     FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
-    
+
     // Foreground messages
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
       debugPrint('Got a message whilst in the foreground!');
@@ -99,49 +106,6 @@ class NotificationService {
     if (await Permission.notification.isDenied) {
       await Permission.notification.request();
     }
-
-    // Custom dialog for battery optimization
-    if (await Permission.ignoreBatteryOptimizations.isDenied) {
-      if (context.mounted) {
-        final bool? proceed = await showDialog<bool>(
-          context: context,
-          builder: (context) => AlertDialog(
-            backgroundColor: Colors.white,
-            surfaceTintColor: Colors.white,
-            title: const Text('BACKGROUND ALERTS', 
-              style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18, letterSpacing: 0.5)),
-            content: const Text(
-              'To receive notifications instantly when the app is closed, please allow "Ignore Battery Optimizations" in the next step.',
-              style: TextStyle(fontSize: 14, color: Colors.black87),
-            ),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: const Text('LATER', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
-              ),
-              Padding(
-                padding: const EdgeInsets.only(left: 8),
-                child: ElevatedButton(
-                  onPressed: () => Navigator.pop(context, true),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.black,
-                    foregroundColor: Colors.white,
-                    minimumSize: const Size(100, 48),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                  child: const Text('ALLOW'),
-                ),
-              ),
-            ],
-          ),
-        );
-
-        if (proceed == true) {
-          await Permission.ignoreBatteryOptimizations.request();
-        }
-      }
-    }
   }
 
   // Existing logic
@@ -153,16 +117,17 @@ class NotificationService {
   }) async {
     const AndroidNotificationDetails androidPlatformChannelSpecifics =
         AndroidNotificationDetails(
-      'xpower_notifications',
-      'General Notifications',
-      channelDescription: 'Notifications for xPower Partners',
-      importance: Importance.max,
-      priority: Priority.high,
-      ticker: 'ticker',
-    );
+          'xpower_notifications_v2',
+          'General Notifications',
+          channelDescription: 'Notifications for xPower Partners',
+          importance: Importance.max,
+          priority: Priority.high,
+          ticker: 'ticker',
+        );
 
-    const NotificationDetails platformChannelSpecifics =
-        NotificationDetails(android: androidPlatformChannelSpecifics);
+    const NotificationDetails platformChannelSpecifics = NotificationDetails(
+      android: androidPlatformChannelSpecifics,
+    );
 
     await _plugin.show(
       id: id,
@@ -177,8 +142,8 @@ class NotificationService {
   Future<void> fireServerNotifications(List<dynamic> items) async {
     int idCounter = 300;
     for (final dynamic item in items) {
-      final String title    = item['title']    ?? 'Notification';
-      final String message  = item['message']  ?? '';
+      final String title = item['title'] ?? 'Notification';
+      final String message = item['message'] ?? '';
       await showNotification(id: idCounter++, title: title, body: message);
       debugPrint('[Notifications] Notified: $title');
     }

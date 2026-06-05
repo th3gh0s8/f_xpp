@@ -8,20 +8,36 @@ import '../models/payout_request.dart';
 class DatabaseHelper {
   static final DatabaseHelper _instance = DatabaseHelper._internal();
   static Database? _database;
-  final _notificationStream = StreamController<List<Map<String, dynamic>>>.broadcast();
+  final _notificationStream =
+      StreamController<List<Map<String, dynamic>>>.broadcast();
   final _invoiceStream = StreamController<List<Invoice>>.broadcast();
   final _payoutStream = StreamController<List<PayoutRequest>>.broadcast();
   final _partnerStream = StreamController<Partner?>.broadcast();
-  final _customerStream = StreamController<List<Map<String, dynamic>>>.broadcast();
+  final _customerStream =
+      StreamController<List<Map<String, dynamic>>>.broadcast();
+
+  final _dashboardStream = StreamController<Map<String, dynamic>?>.broadcast();
 
   factory DatabaseHelper() => _instance;
   DatabaseHelper._internal();
 
-  Stream<List<Map<String, dynamic>>> get notificationStream => _notificationStream.stream;
+  Stream<List<Map<String, dynamic>>> get notificationStream =>
+      _notificationStream.stream;
   Stream<List<Invoice>> get invoiceStream => _invoiceStream.stream;
   Stream<List<PayoutRequest>> get payoutStream => _payoutStream.stream;
   Stream<Partner?> get partnerStream => _partnerStream.stream;
-  Stream<List<Map<String, dynamic>>> get customerStream => _customerStream.stream;
+  Stream<List<Map<String, dynamic>>> get customerStream =>
+      _customerStream.stream;
+  Stream<Map<String, dynamic>?> get dashboardStream => _dashboardStream.stream;
+
+  void updateDashboard(Map<String, dynamic>? data) {
+    _dashboardStream.add(data);
+  }
+
+  Future<void> refreshNotificationStream() async {
+    final list = await getNotifications();
+    _notificationStream.add(list);
+  }
 
   Future<Database> get database async {
     if (_database != null) return _database!;
@@ -179,14 +195,18 @@ class DatabaseHelper {
       'email': 'test@example.com',
       'bank_account_no': '987654321',
       'bank_name': 'Test Bank',
-      'bank_ac_branch': 'Colombo'
+      'bank_ac_branch': 'Colombo',
     });
   }
 
   // Partner Operations
   Future<int> insertPartner(Partner partner) async {
     Database db = await database;
-    final res = await db.insert('partners', partner.toJson(), conflictAlgorithm: ConflictAlgorithm.replace);
+    final res = await db.insert(
+      'partners',
+      partner.toJson(),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
     _partnerStream.add(partner);
     return res;
   }
@@ -214,7 +234,7 @@ class DatabaseHelper {
       'u_Id': mobileNo,
       'otp_code': code,
       'time': DateTime.now().toIso8601String(),
-      'status': 0 // 0 = unused, 1 = used
+      'status': 0, // 0 = unused, 1 = used
     });
   }
 
@@ -248,7 +268,10 @@ class DatabaseHelper {
       where: 'partner_tb = ?',
       whereArgs: [mobileNo],
     );
-    final invoices = List.generate(maps.length, (i) => Invoice.fromJson(maps[i]));
+    final invoices = List.generate(
+      maps.length,
+      (i) => Invoice.fromJson(maps[i]),
+    );
     _invoiceStream.add(invoices);
     return invoices;
   }
@@ -264,17 +287,17 @@ class DatabaseHelper {
   Future<int> insertNotification(Map<String, dynamic> notification) async {
     Database db = await database;
     final int id = int.tryParse(notification['id'].toString()) ?? 0;
-    
+
     // Check if we already have this notification and it's marked as read locally
     List<Map<String, dynamic>> existing = await db.query(
-      'notifications', 
-      where: 'id = ?', 
+      'notifications',
+      where: 'id = ?',
       whereArgs: [id],
-      limit: 1
+      limit: 1,
     );
 
     int isRead = int.tryParse(notification['is_read']?.toString() ?? '0') ?? 0;
-    
+
     // If it exists and was read locally, preserve that status
     if (existing.isNotEmpty && existing.first['is_read'] == 1) {
       isRead = 1;
@@ -287,7 +310,7 @@ class DatabaseHelper {
       'created_at': notification['created_at'],
       'is_read': isRead,
     }, conflictAlgorithm: ConflictAlgorithm.replace);
-    
+
     _notificationStream.add(await getNotifications());
     return res;
   }
@@ -307,10 +330,10 @@ class DatabaseHelper {
   Future<int> markSingleNotificationRead(int id) async {
     Database db = await database;
     final res = await db.update(
-      'notifications', 
-      {'is_read': 1}, 
-      where: 'id = ?', 
-      whereArgs: [id]
+      'notifications',
+      {'is_read': 1},
+      where: 'id = ?',
+      whereArgs: [id],
     );
     _notificationStream.add(await getNotifications());
     return res;
@@ -334,7 +357,11 @@ class DatabaseHelper {
   Future<void> syncCustomers(List<Map<String, dynamic>> customers) async {
     Database db = await database;
     for (var c in customers) {
-      await db.insert('new_clients', c, conflictAlgorithm: ConflictAlgorithm.replace);
+      await db.insert(
+        'new_clients',
+        c,
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
     }
     _customerStream.add(customers);
   }
