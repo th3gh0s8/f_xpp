@@ -1,5 +1,7 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/resell_package.dart';
 import '../services/api_service.dart';
 import '../widgets/system_overlay_wrapper.dart';
@@ -19,19 +21,48 @@ class _ResellPackagesPageState extends State<ResellPackagesPage> {
   @override
   void initState() {
     super.initState();
-    _fetchPackages();
+    _initData();
+  }
+
+  Future<void> _initData() async {
+    await _loadCachedPackages();
+    if (mounted) _fetchPackages();
+  }
+
+  Future<void> _loadCachedPackages() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final cached = prefs.getString('cached_packages');
+      if (cached != null && mounted && _packages.isEmpty) {
+        final List<dynamic> decoded = json.decode(cached);
+        setState(() {
+          _packages = decoded.map((e) => ResellPackage.fromJson(e)).toList();
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading cached packages: $e');
+    }
   }
 
   Future<void> _fetchPackages() async {
     if (!mounted) return;
-    setState(() => _isLoading = true);
     try {
       final packages = await _apiService.getPackages();
       if (mounted) {
         setState(() {
           _packages = packages;
-          _isLoading = false;
+          if (_isLoading) _isLoading = false;
         });
+        try {
+          final prefs = await SharedPreferences.getInstance();
+          prefs.setString(
+            'cached_packages',
+            json.encode(packages.map((p) => p.toJson()).toList()),
+          );
+        } catch (e) {
+          debugPrint('Error caching packages: $e');
+        }
       }
     } catch (e) {
       if (mounted) setState(() => _isLoading = false);

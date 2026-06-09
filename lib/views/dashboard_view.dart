@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:xpower_partners/models/invoice.dart';
 import '../models/partner.dart';
 import '../services/api_service.dart';
 import '../services/notification_service.dart';
@@ -33,6 +34,7 @@ class _DashboardViewState extends State<DashboardView>
   Partner? _partner;
   bool _isLoading = true;
   Timer? _pollingTimer;
+  StreamSubscription? _invoiceSubscription;
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
@@ -49,6 +51,13 @@ class _DashboardViewState extends State<DashboardView>
     _loadCachedData();
     _loadData();
     DatabaseHelper().refreshNotificationStream();
+    _invoiceSubscription = DatabaseHelper().invoiceStream.listen((invoices) {
+      if (mounted) {
+        setState(() {
+          _recentInvoices = invoices;
+        });
+      }
+    });
   }
 
   @override
@@ -71,6 +80,7 @@ class _DashboardViewState extends State<DashboardView>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _pollingTimer?.cancel();
+    _invoiceSubscription?.cancel();
     super.dispose();
   }
 
@@ -145,6 +155,14 @@ class _DashboardViewState extends State<DashboardView>
         }
       });
 
+      // 2.5 Sync notifications for badge
+      _apiService.getNotifications(mobileNo).then((notifications) async {
+        for (var n in notifications) {
+          await DatabaseHelper().insertNotification(n);
+        }
+        await DatabaseHelper().refreshNotificationStream();
+      });
+
       // 3. Trigger foreground notification check
       if (data != null && data['unread_notifications'] != null) {
         int currentUnread =
@@ -208,6 +226,7 @@ class _DashboardViewState extends State<DashboardView>
         final partner = partnerSnapshot.data;
         return StreamBuilder<List<Map<String, dynamic>>>(
           stream: DatabaseHelper().notificationStream,
+          initialData: DatabaseHelper().cachedNotifications,
           builder: (context, _) {
             return RefreshIndicator(
               onRefresh: _loadData,
@@ -296,6 +315,7 @@ class _DashboardViewState extends State<DashboardView>
         ),
         StreamBuilder<List<Map<String, dynamic>>>(
           stream: DatabaseHelper().notificationStream,
+          initialData: DatabaseHelper().cachedNotifications,
           builder: (context, snapshot) {
             final data = snapshot.data ?? [];
             final unreadCount = data.where((n) => n['is_read'] == 0).length;

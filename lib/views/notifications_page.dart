@@ -33,13 +33,14 @@ class _NotificationsPageState extends State<NotificationsPage> {
 
   Future<void> _loadNotifications() async {
     setState(() => _isLoading = true);
-    
+
     // 1. Load from cache first
     final cached = await _dbHelper.getNotifications();
     if (mounted) {
       setState(() {
         _notifications = cached;
-        if (cached.isNotEmpty) _isLoading = false; // Show cached data immediately
+        if (cached.isNotEmpty)
+          _isLoading = false; // Show cached data immediately
       });
     }
 
@@ -50,9 +51,15 @@ class _NotificationsPageState extends State<NotificationsPage> {
         for (var n in apiData) {
           await _dbHelper.insertNotification(n);
         }
-        if (mounted) setState(() => _isLoading = false);
-      } else {
-        if (mounted) setState(() => _isLoading = false);
+      }
+
+      // 3. Fetch the fully updated list (cache + API synced) and update state:
+      final freshList = await _dbHelper.getNotifications();
+      if (mounted) {
+        setState(() {
+          _notifications = freshList;
+          _isLoading = false;
+        });
       }
     } catch (e) {
       print('Sync Error: $e');
@@ -62,50 +69,62 @@ class _NotificationsPageState extends State<NotificationsPage> {
 
   @override
   Widget build(BuildContext context) {
-    return SystemOverlayWrapper(
-      child: StreamBuilder<List<Map<String, dynamic>>>(
-        stream: _dbHelper.notificationStream,
-        initialData: _notifications,
-        builder: (context, snapshot) {
-          final data = snapshot.data ?? [];
-          final unread = data.where((n) => n['is_read'] == 0).toList();
-          final viewed = data.where((n) => n['is_read'] == 1).toList();
+    // 1. Extract notifications directly from state
+    final data = _notifications;
+    final unread = data.where((n) => n['is_read'] == 0).toList();
+    final viewed = data.where((n) => n['is_read'] == 1).toList();
 
-          return DefaultTabController(
-            length: 2,
-            child: Scaffold(
-              backgroundColor: const Color(0xFFF2F2F2),
-              appBar: AppBar(
-                systemOverlayStyle: const SystemUiOverlayStyle(
-                  statusBarColor: Colors.transparent,
-                  statusBarIconBrightness: Brightness.dark,
-                  statusBarBrightness: Brightness.light,
-                ),
-                title: const Text('NOTIFICATIONS', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16, letterSpacing: 1, color: Colors.black)),
-                bottom: const TabBar(
-                  labelColor: Colors.black,
-                  unselectedLabelColor: Colors.grey,
-                  indicatorColor: Colors.black,
-                  tabs: [Tab(text: 'NEW'), Tab(text: 'VIEWED')],
-                ),
-                iconTheme: const IconThemeData(color: Colors.black),
-                backgroundColor: Colors.transparent,
-                elevation: 0,
-                actions: [
-                  IconButton(onPressed: _loadNotifications, icon: const Icon(Icons.refresh, size: 20, color: Colors.black)),
-                ],
-              ),
-              body: _isLoading
-                  ? const Center(child: CircularProgressIndicator(color: Colors.black))
-                  : TabBarView(
-                      children: [
-                        _buildList(unread, false),
-                        _buildList(viewed, true),
-                      ],
-                    ),
+    return SystemOverlayWrapper(
+      child: DefaultTabController(
+        length: 2,
+        child: Scaffold(
+          backgroundColor: const Color(0xFFF2F2F2),
+          appBar: AppBar(
+            systemOverlayStyle: const SystemUiOverlayStyle(
+              statusBarColor: Colors.transparent,
+              statusBarIconBrightness: Brightness.dark,
+              statusBarBrightness: Brightness.light,
             ),
-          );
-        },
+            title: const Text(
+              'NOTIFICATIONS',
+              style: TextStyle(
+                fontWeight: FontWeight.w900,
+                fontSize: 16,
+                letterSpacing: 1,
+                color: Colors.black,
+              ),
+            ),
+            bottom: const TabBar(
+              labelColor: Colors.black,
+              unselectedLabelColor: Colors.grey,
+              indicatorColor: Colors.black,
+              tabs: [
+                Tab(text: 'NEW'),
+                Tab(text: 'VIEWED'),
+              ],
+            ),
+            iconTheme: const IconThemeData(color: Colors.black),
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            actions: [
+              IconButton(
+                onPressed: _loadNotifications,
+                icon: const Icon(Icons.refresh, size: 20, color: Colors.black),
+              ),
+            ],
+          ),
+          // 2. Render lists directly based on _isLoading
+          body: _isLoading
+              ? const Center(
+                  child: CircularProgressIndicator(color: Colors.black),
+                )
+              : TabBarView(
+                  children: [
+                    _buildList(unread, false),
+                    _buildList(viewed, true),
+                  ],
+                ),
+        ),
       ),
     );
   }
@@ -121,20 +140,33 @@ class _NotificationsPageState extends State<NotificationsPage> {
   }
 
   Widget _buildNotificationCard(Map<String, dynamic> item, bool isViewed) {
-    final formattedDate = DateFormat('MMM d, hh:mm a').format(DateTime.parse(item['created_at']));
+    final formattedDate = DateFormat(
+      'MMM d, hh:mm a',
+    ).format(DateTime.parse(item['created_at']));
     return Opacity(
       opacity: isViewed ? 0.5 : 1.0,
       child: GestureDetector(
-        onTap: isViewed ? null : () async {
-          await _dbHelper.markSingleNotificationRead(item['id']);
-          await _apiService.markNotificationSingleRead(widget.mobileNo, item['id']);
-        },
+        onTap: isViewed
+            ? null
+            : () async {
+                await _dbHelper.markSingleNotificationRead(item['id']);
+                await _apiService.markNotificationSingleRead(
+                  widget.mobileNo,
+                  item['id'],
+                );
+              },
         child: Container(
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(16),
             border: Border.all(color: Colors.black.withValues(alpha: 0.05)),
-            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 10, offset: const Offset(0, 4))],
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.03),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
           padding: const EdgeInsets.all(20),
           child: Column(
@@ -147,21 +179,51 @@ class _NotificationsPageState extends State<NotificationsPage> {
                     child: Row(
                       children: [
                         if (!isViewed)
-                          Container(width: 8, height: 8, margin: const EdgeInsets.only(right: 8), decoration: const BoxDecoration(color: Colors.blueAccent, shape: BoxShape.circle)),
-                        Expanded(child: Text(item['title'].toString().toUpperCase(), style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 14, color: Colors.black))),
+                          Container(
+                            width: 8,
+                            height: 8,
+                            margin: const EdgeInsets.only(right: 8),
+                            decoration: const BoxDecoration(
+                              color: Colors.blueAccent,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                        Expanded(
+                          child: Text(
+                            item['title'].toString().toUpperCase(),
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w900,
+                              fontSize: 14,
+                              color: Colors.black,
+                            ),
+                          ),
+                        ),
                       ],
                     ),
                   ),
-                  Text(formattedDate, style: TextStyle(fontSize: 10, color: Colors.black.withValues(alpha: 0.4), fontWeight: FontWeight.w700)),
+                  Text(
+                    formattedDate,
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: Colors.black.withValues(alpha: 0.4),
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                 ],
               ),
               const SizedBox(height: 12),
-              Text(item['message'].toString(), style: TextStyle(fontSize: 13, color: Colors.black.withValues(alpha: 0.8), height: 1.5)),
+              Text(
+                item['message'].toString(),
+                style: TextStyle(
+                  fontSize: 13,
+                  color: Colors.black.withValues(alpha: 0.8),
+                  height: 1.5,
+                ),
+              ),
             ],
           ),
         ),
       ),
     );
   }
-
 }

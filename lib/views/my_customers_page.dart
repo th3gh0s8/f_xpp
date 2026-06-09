@@ -1,10 +1,13 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/customer.dart';
 import '../services/api_service.dart';
 import '../database/database_helper.dart';
 import '../widgets/system_overlay_wrapper.dart';
 import '../utils/format_utils.dart';
+import 'dart:async';
 
 class MyCustomersPage extends StatefulWidget {
   final String phoneNumber;
@@ -19,11 +22,24 @@ class _MyCustomersPageState extends State<MyCustomersPage> {
   List<Customer> _customers = [];
   bool _isLoading = true;
   String _selectedFilter = 'ALL'; // 'ALL', 'APPROVED', 'PENDING'
+  StreamSubscription? _customerSubscription;
 
   @override
   void initState() {
     super.initState();
     _fetchCustomers();
+    _customerSubscription = DatabaseHelper().customerStream.listen((customers) {
+      if (mounted) {
+        setState(() {
+          _customers = customers.map((c) => Customer.fromJson(c)).toList();
+        });
+      }
+    });
+  }
+
+  Future<void> _initData() async {
+    await _loadCachedCustomers();
+    if (mounted) _fetchCustomers();
   }
 
   @override
@@ -32,17 +48,47 @@ class _MyCustomersPageState extends State<MyCustomersPage> {
     _fetchCustomers();
   }
 
+  @override
+  void dispose() {
+    _customerSubscription?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _loadCachedCustomers() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final cached = prefs.getString('cached_customers_${widget.phoneNumber}');
+      if (cached != null && mounted && _customers.isEmpty) {
+        final List<dynamic> decoded = json.decode(cached);
+        setState(() {
+          _customers = decoded.map((e) => Customer.fromJson(e)).toList();
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading cached customers: $e');
+    }
+  }
+
   Future<void> _fetchCustomers() async {
     if (!mounted) return;
-    setState(() => _isLoading = true);
     try {
       final customersRaw = await _apiService.getCustomers(widget.phoneNumber);
       final customers = customersRaw.map((c) => Customer.fromJson(c)).toList();
       if (mounted) {
         setState(() {
           _customers = customers;
-          _isLoading = false;
+          if (_isLoading) _isLoading = false;
         });
+        try {
+          final prefs = await SharedPreferences.getInstance();
+          prefs.setString(
+            'cached_customers_${widget.phoneNumber}',
+            json.encode(customersRaw),
+          );
+        } catch (e) {
+          debugPrint('Error caching customers: $e');
+        }
       }
     } catch (e) {
       if (mounted) setState(() => _isLoading = false);
@@ -65,33 +111,34 @@ class _MyCustomersPageState extends State<MyCustomersPage> {
             statusBarIconBrightness: Brightness.dark,
             statusBarBrightness: Brightness.light,
           ),
-          title: const Text('MY CUSTOMERS', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 14, letterSpacing: 1.5)),
+          title: const Text(
+            'MY CUSTOMERS',
+            style: TextStyle(
+              fontWeight: FontWeight.w900,
+              fontSize: 14,
+              letterSpacing: 1.5,
+            ),
+          ),
           leading: IconButton(
             icon: const Icon(Icons.arrow_back_ios_new, size: 20),
             onPressed: () => Navigator.pop(context),
           ),
         ),
+        // Render customers directly from state:
         body: Column(
           children: [
             _buildFilterBar(),
             Expanded(
-              child: StreamBuilder<List<Map<String, dynamic>>>(
-                stream: DatabaseHelper().customerStream,
-                builder: (context, snapshot) {
-                  final list = snapshot.data != null 
-                    ? snapshot.data!.map((c) => Customer.fromJson(c)).toList()
-                    : _customers;
-
-                  return RefreshIndicator(
-                    onRefresh: _fetchCustomers,
-                    color: Colors.black,
-                    child: _isLoading && list.isEmpty 
-                      ? const Center(child: CircularProgressIndicator(color: Colors.black))
-                      : _filteredCustomersList(list).isEmpty 
-                        ? _buildEmptyState()
-                        : _buildCustomerList(_filteredCustomersList(list)),
-                  );
-                }
+              child: RefreshIndicator(
+                onRefresh: _fetchCustomers,
+                color: Colors.black,
+                child: _isLoading && _customers.isEmpty
+                    ? const Center(
+                        child: CircularProgressIndicator(color: Colors.black),
+                      )
+                    : _filteredCustomersList(_customers).isEmpty
+                    ? _buildEmptyState()
+                    : _buildCustomerList(_filteredCustomersList(_customers)),
               ),
             ),
           ],
@@ -157,11 +204,28 @@ class _MyCustomersPageState extends State<MyCustomersPage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.people_outline_rounded, size: 64, color: Colors.black.withOpacity(0.1)),
+            Icon(
+              Icons.people_outline_rounded,
+              size: 64,
+              color: Colors.black.withOpacity(0.1),
+            ),
             const SizedBox(height: 16),
-            Text(message, style: const TextStyle(fontWeight: FontWeight.w900, color: Colors.black38)),
+            Text(
+              message,
+              style: const TextStyle(
+                fontWeight: FontWeight.w900,
+                color: Colors.black38,
+              ),
+            ),
             const SizedBox(height: 8),
-            const Text('PULL DOWN TO REFRESH', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.black12)),
+            const Text(
+              'PULL DOWN TO REFRESH',
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+                color: Colors.black12,
+              ),
+            ),
           ],
         ),
       ),
@@ -177,7 +241,7 @@ class _MyCustomersPageState extends State<MyCustomersPage> {
       itemBuilder: (context, index) {
         final client = list[index];
         bool isApproved = client.status == 'APPROVED';
-        
+
         return GestureDetector(
           onTap: () => _showCustomerDetails(client),
           child: Container(
@@ -199,39 +263,62 @@ class _MyCustomersPageState extends State<MyCustomersPage> {
                           Flexible(
                             child: Text(
                               client.companyName.toUpperCase(),
-                              style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 14, letterSpacing: -0.2),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w900,
+                                fontSize: 14,
+                                letterSpacing: -0.2,
+                              ),
                             ),
                           ),
                           if (isApproved) ...[
                             const SizedBox(width: 6),
-                            const Icon(Icons.verified, size: 16, color: Colors.blue),
+                            const Icon(
+                              Icons.verified,
+                              size: 16,
+                              color: Colors.blue,
+                            ),
                           ] else ...[
                             const SizedBox(width: 6),
-                            const Icon(Icons.pending, size: 16, color: Colors.orange),
+                            const Icon(
+                              Icons.pending,
+                              size: 16,
+                              color: Colors.orange,
+                            ),
                           ],
                         ],
                       ),
                     ),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
-                        color: isApproved ? Colors.green.withOpacity(0.1) : Colors.orange.withOpacity(0.1),
+                        color: isApproved
+                            ? Colors.green.withOpacity(0.1)
+                            : Colors.orange.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
                         client.status,
                         style: TextStyle(
-                          fontSize: 9, 
-                          fontWeight: FontWeight.w900, 
-                          color: isApproved ? Colors.green : Colors.orange
+                          fontSize: 9,
+                          fontWeight: FontWeight.w900,
+                          color: isApproved ? Colors.green : Colors.orange,
                         ),
                       ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 12),
-                _buildDetailItem(Icons.location_on_outlined, client.companyAddress),
-                _buildDetailItem(Icons.phone_android_outlined, client.companyNumber),
+                _buildDetailItem(
+                  Icons.location_on_outlined,
+                  client.companyAddress,
+                ),
+                _buildDetailItem(
+                  Icons.phone_android_outlined,
+                  client.companyNumber,
+                ),
                 _buildDetailItem(Icons.person_outline, client.adminName),
               ],
             ),
@@ -276,11 +363,19 @@ class _MyCustomersPageState extends State<MyCustomersPage> {
                         Expanded(
                           child: Text(
                             client.companyName.toUpperCase(),
-                            style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 20, letterSpacing: -0.5),
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w900,
+                              fontSize: 20,
+                              letterSpacing: -0.5,
+                            ),
                           ),
                         ),
                         if (client.status == 'APPROVED')
-                          const Icon(Icons.verified, color: Colors.blue, size: 24),
+                          const Icon(
+                            Icons.verified,
+                            color: Colors.blue,
+                            size: 24,
+                          ),
                       ],
                     ),
                     const SizedBox(height: 8),
@@ -289,7 +384,9 @@ class _MyCustomersPageState extends State<MyCustomersPage> {
                       style: TextStyle(
                         fontWeight: FontWeight.w900,
                         fontSize: 10,
-                        color: client.status == 'APPROVED' ? Colors.green : Colors.orange,
+                        color: client.status == 'APPROVED'
+                            ? Colors.green
+                            : Colors.orange,
                         letterSpacing: 1,
                       ),
                     ),
@@ -306,9 +403,20 @@ class _MyCustomersPageState extends State<MyCustomersPage> {
                     const SizedBox(height: 24),
                     _buildSectionTitle('PACKAGE DETAILS'),
                     _buildDetailRow('Package', client.packageName ?? 'N/A'),
-                    _buildDetailRow('Additional Modules', client.additionalPackages?.isNotEmpty == true ? client.additionalPackages! : 'N/A'),
-                    _buildDetailRow('Discount', '${client.discount?.toStringAsFixed(0) ?? '0'}%'),
-                    _buildDetailRow('Total', FormatUtils.formatCurrency(client.totalCost ?? 0)),
+                    _buildDetailRow(
+                      'Additional Modules',
+                      client.additionalPackages?.isNotEmpty == true
+                          ? client.additionalPackages!
+                          : 'N/A',
+                    ),
+                    _buildDetailRow(
+                      'Discount',
+                      '${client.discount?.toStringAsFixed(0) ?? '0'}%',
+                    ),
+                    _buildDetailRow(
+                      'Total',
+                      FormatUtils.formatCurrency(client.totalCost ?? 0),
+                    ),
                     const SizedBox(height: 24),
                     _buildSectionTitle('ADDITIONAL DETAILS'),
                     _buildDetailRow('Preferred Language', client.preferredLang),
@@ -331,7 +439,12 @@ class _MyCustomersPageState extends State<MyCustomersPage> {
       padding: const EdgeInsets.only(bottom: 16),
       child: Text(
         title,
-        style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 11, letterSpacing: 1, color: Colors.black38),
+        style: const TextStyle(
+          fontWeight: FontWeight.w900,
+          fontSize: 11,
+          letterSpacing: 1,
+          color: Colors.black38,
+        ),
       ),
     );
   }
@@ -343,11 +456,22 @@ class _MyCustomersPageState extends State<MyCustomersPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(label.toUpperCase(), style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Colors.black26)),
+          Text(
+            label.toUpperCase(),
+            style: const TextStyle(
+              fontSize: 9,
+              fontWeight: FontWeight.bold,
+              color: Colors.black26,
+            ),
+          ),
           const SizedBox(height: 4),
           Text(
             value.isEmpty ? 'N/A' : value,
-            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.black87),
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: Colors.black87,
+            ),
           ),
         ],
       ),
@@ -364,7 +488,11 @@ class _MyCustomersPageState extends State<MyCustomersPage> {
           Expanded(
             child: Text(
               text,
-              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.black54),
+              style: const TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: Colors.black54,
+              ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),

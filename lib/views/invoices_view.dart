@@ -1,9 +1,13 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/invoice.dart';
 import '../services/api_service.dart';
 import 'invoice_details_page.dart';
 import '../widgets/system_overlay_wrapper.dart';
 import '../utils/format_utils.dart';
+import 'dart:async';
+import '../database/database_helper.dart';
 
 class InvoicesView extends StatefulWidget {
   final String phoneNumber;
@@ -22,11 +26,24 @@ class _InvoicesViewState extends State<InvoicesView> {
   final ApiService _apiService = ApiService();
   List<Invoice> _invoices = [];
   bool _isLoading = true;
+  StreamSubscription? _invoiceSubscription;
 
   @override
   void initState() {
     super.initState();
     _fetchInvoices();
+    _invoiceSubscription = DatabaseHelper().invoiceStream.listen((invoices) {
+      if (mounted) {
+        setState(() {
+          _invoices = invoices;
+        });
+      }
+    });
+  }
+
+  Future<void> _initData() async {
+    await _loadCachedInvoices();
+    if (mounted) _fetchInvoices();
   }
 
   @override
@@ -43,6 +60,28 @@ class _InvoicesViewState extends State<InvoicesView> {
     }
   }
 
+  @override
+  void dispose() {
+    _invoiceSubscription?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _loadCachedInvoices() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final cached = prefs.getString('cached_invoices_${widget.phoneNumber}');
+      if (cached != null && mounted && _invoices.isEmpty) {
+        final List<dynamic> decoded = json.decode(cached);
+        setState(() {
+          _invoices = decoded.map((e) => Invoice.fromJson(e)).toList();
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading cached invoices: $e');
+    }
+  }
+
   Future<void> _fetchInvoices() async {
     if (!mounted) return;
     final mobileNo = widget.phoneNumber;
@@ -52,6 +91,15 @@ class _InvoicesViewState extends State<InvoicesView> {
         _invoices = invoices;
         _isLoading = false;
       });
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        prefs.setString(
+          'cached_invoices_$mobileNo',
+          json.encode(invoices.map((e) => e.toJson()).toList()),
+        );
+      } catch (e) {
+        debugPrint('Error caching invoices: $e');
+      }
     }
   }
 

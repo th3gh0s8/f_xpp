@@ -1,8 +1,10 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:intl_phone_field/intl_phone_field.dart';
 import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/customer.dart';
 import '../services/api_service.dart';
 import '../models/resell_package.dart';
@@ -50,13 +52,38 @@ class _AddCustomerPageState extends State<AddCustomerPage> {
   @override
   void initState() {
     super.initState();
+    _loadCachedPackages();
     _fetchPackages();
     _discountController.addListener(_updateFinalAmount);
+  }
+
+  Future<void> _loadCachedPackages() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final cached = prefs.getString('cached_packages');
+      if (cached != null) {
+        final List<dynamic> decoded = json.decode(cached);
+        setState(() {
+          _availablePackages = decoded.map((e) => ResellPackage.fromJson(e)).toList();
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading cached packages: $e');
+    }
   }
 
   Future<void> _fetchPackages() async {
     final packages = await _apiService.getPackages();
     setState(() => _availablePackages = packages);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      prefs.setString(
+        'cached_packages',
+        json.encode(packages.map((p) => p.toJson()).toList()),
+      );
+    } catch (e) {
+      debugPrint('Error caching packages: $e');
+    }
   }
 
   void _updateFinalAmount() {

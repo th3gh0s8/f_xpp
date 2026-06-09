@@ -15,8 +15,10 @@ class ApiService {
       final response = await http.get(
         Uri.parse('$baseUrl/get_profile.php?mobile_no=$mobileNo&t=$timestamp'),
       );
-      
-      print('DEBUG: [getProfile] Fetching data from: ${Uri.parse('$baseUrl/get_profile.php?mobile_no=$mobileNo&t=$timestamp')}');
+
+      print(
+        'DEBUG: [getProfile] Fetching data from: ${Uri.parse('$baseUrl/get_profile.php?mobile_no=$mobileNo&t=$timestamp')}',
+      );
 
       if (response.statusCode == 200) {
         print('DEBUG: [getProfile] Raw Body: ${response.body}');
@@ -84,10 +86,7 @@ class ApiService {
     try {
       final response = await http.post(
         Uri.parse('$baseUrl/verify_otp.php'),
-        body: {
-          'mobile_no': mobileNo,
-          'otp_code': otp,
-        },
+        body: {'mobile_no': mobileNo, 'otp_code': otp},
       );
 
       if (response.statusCode == 200) {
@@ -107,8 +106,10 @@ class ApiService {
       final response = await http.get(
         Uri.parse('$baseUrl/get_partner.php?mobile_no=$mobileNo&t=$timestamp'),
       );
-      
-      print('DEBUG: [getPartner] Fetching data from: ${Uri.parse('$baseUrl/get_partner.php?mobile_no=$mobileNo&t=$timestamp')}');
+
+      print(
+        'DEBUG: [getPartner] Fetching data from: ${Uri.parse('$baseUrl/get_partner.php?mobile_no=$mobileNo&t=$timestamp')}',
+      );
 
       if (response.statusCode == 200) {
         print('DEBUG: [getPartner] Raw Body: ${response.body}');
@@ -129,7 +130,9 @@ class ApiService {
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         if (data['success']) {
-          return (data['data'] as List).map((p) => ResellPackage.fromJson(p)).toList();
+          return (data['data'] as List)
+              .map((p) => ResellPackage.fromJson(p))
+              .toList();
         }
       }
     } catch (e) {
@@ -140,7 +143,10 @@ class ApiService {
 
   Future<List<Map<String, dynamic>>> getPayouts(String mobileNo) async {
     try {
-      final response = await http.get(Uri.parse('$baseUrl/get_payouts.php?mobile_no=$mobileNo'));
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final response = await http.get(
+        Uri.parse('$baseUrl/get_payouts.php?mobile_no=$mobileNo&t=$timestamp'),
+      );
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         if (data['success']) {
@@ -153,14 +159,14 @@ class ApiService {
     return [];
   }
 
-  Future<Map<String, dynamic>?> requestPayout(String mobileNo, double amount) async {
+  Future<Map<String, dynamic>?> requestPayout(
+    String mobileNo,
+    double amount,
+  ) async {
     try {
       final response = await http.post(
         Uri.parse('$baseUrl/request_payout.php'),
-        body: json.encode({
-          'mobile_no': mobileNo,
-          'amount': amount,
-        }),
+        body: json.encode({'mobile_no': mobileNo, 'amount': amount}),
         headers: {'Content-Type': 'application/json'},
       );
       if (response.statusCode == 200) {
@@ -176,7 +182,9 @@ class ApiService {
     try {
       final timestamp = DateTime.now().millisecondsSinceEpoch;
       final response = await http.get(
-        Uri.parse('$baseUrl/get_dashboard_data.php?mobile_no=$mobileNo&t=$timestamp'),
+        Uri.parse(
+          '$baseUrl/get_dashboard_data.php?mobile_no=$mobileNo&t=$timestamp',
+        ),
       );
       if (response.statusCode == 200) {
         print('DEBUG: [getDashboardData] Raw Body: ${response.body}');
@@ -190,12 +198,17 @@ class ApiService {
 
   Future<List<Invoice>> getInvoices(String mobileNo) async {
     try {
-      final response = await http.get(Uri.parse('$baseUrl/get_invoices.php?mobile_no=$mobileNo'));
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final response = await http.get(
+        Uri.parse('$baseUrl/get_invoices.php?mobile_no=$mobileNo&t=$timestamp'),
+      );
       if (response.statusCode == 200) {
         print('DEBUG: [getInvoices] Raw Body: ${response.body}');
         final data = json.decode(response.body);
         if (data['success']) {
-          return (data['data'] as List).map((i) => Invoice.fromJson(i)).toList();
+          return (data['data'] as List)
+              .map((i) => Invoice.fromJson(i))
+              .toList();
         }
       }
     } catch (e) {
@@ -206,7 +219,12 @@ class ApiService {
 
   Future<List<Map<String, dynamic>>> getCustomers(String mobileNo) async {
     try {
-      final response = await http.get(Uri.parse('$baseUrl/get_customers.php?mobile_no=$mobileNo'));
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final response = await http.get(
+        Uri.parse(
+          '$baseUrl/get_customers.php?mobile_no=$mobileNo&t=$timestamp',
+        ),
+      );
       if (response.statusCode == 200) {
         print('DEBUG: [getCustomers] Raw Body: ${response.body}');
         final data = json.decode(response.body);
@@ -222,7 +240,12 @@ class ApiService {
 
   Future<List<Map<String, dynamic>>> getNotifications(String mobileNo) async {
     try {
-      final response = await http.get(Uri.parse('$baseUrl/get_notifications.php?mobile_no=$mobileNo'));
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final response = await http.get(
+        Uri.parse(
+          '$baseUrl/get_notifications.php?mobile_no=$mobileNo&t=$timestamp',
+        ),
+      );
       if (response.statusCode == 200) {
         print('DEBUG: [getNotifications] Raw Body: ${response.body}');
         final data = json.decode(response.body);
@@ -254,7 +277,10 @@ class ApiService {
     return false;
   }
 
-  Future<bool> markNotificationSingleRead(String mobileNo, int notificationId) async {
+  Future<bool> markNotificationSingleRead(
+    String mobileNo,
+    int notificationId,
+  ) async {
     try {
       final response = await http.post(
         Uri.parse('$baseUrl/mark_notification_single_read.php'),
@@ -274,10 +300,17 @@ class ApiService {
     return false;
   }
 
-  Future<bool> addCustomer(Customer customer, File paymentSlip, {required String partnerMobile}) async {
+  Future<bool> addCustomer(
+    Customer customer,
+    File paymentSlip, {
+    required String partnerMobile,
+  }) async {
     try {
-      var request = http.MultipartRequest('POST', Uri.parse('$baseUrl/add_customer.php'));
-      
+      var request = http.MultipartRequest(
+        'POST',
+        Uri.parse('$baseUrl/add_customer.php'),
+      );
+
       request.fields.addAll({
         'partnerTb': partnerMobile,
         'com_name': customer.companyName,
@@ -297,10 +330,9 @@ class ApiService {
         'total_cost': customer.totalCost?.toString() ?? '0',
       });
 
-      request.files.add(await http.MultipartFile.fromPath(
-        'payment_slip',
-        paymentSlip.path,
-      ));
+      request.files.add(
+        await http.MultipartFile.fromPath('payment_slip', paymentSlip.path),
+      );
 
       var streamedResponse = await request.send();
       var response = await http.Response.fromStream(streamedResponse);
@@ -326,10 +358,7 @@ class ApiService {
     try {
       final response = await http.post(
         Uri.parse('$baseUrl/update_fcm_token.php'),
-        body: json.encode({
-          'mobile_no': mobileNo,
-          'fcm_token': token,
-        }),
+        body: json.encode({'mobile_no': mobileNo, 'fcm_token': token}),
         headers: {'Content-Type': 'application/json'},
       );
       if (response.statusCode == 200) {
@@ -349,7 +378,8 @@ class ApiService {
         body: json.encode({'fcm_token': token}),
         headers: {'Content-Type': 'application/json'},
       );
-      return response.statusCode == 200 && json.decode(response.body)['success'] == true;
+      return response.statusCode == 200 &&
+          json.decode(response.body)['success'] == true;
     } catch (e) {
       print('API Error (Delete FCM Token): $e');
     }

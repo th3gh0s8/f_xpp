@@ -25,6 +25,20 @@ class ResellPackage {
     required this.modules,
   });
 
+  Map<String, dynamic> toJson() => {
+        'ID': id,
+        'package_code': packageCode,
+        'package_name': packageName,
+        'description': description,
+        'additional_remarks': additionalRemarks,
+        'currency_name': currencyName,
+        'package_amount': packageAmount,
+        'billingType': billingType,
+        'allowed_users': allowedUsers,
+        'status': status,
+        'modules': modules.map((m) => m.toJson()).toList(),
+      };
+
   factory ResellPackage.fromJson(Map<String, dynamic> json) {
     return ResellPackage(
       id: int.tryParse(json['ID'].toString()) ?? 0,
@@ -67,6 +81,18 @@ class ResellPackageModule {
     required this.status,
     required this.moduleGroup,
   });
+
+  Map<String, dynamic> toJson() => {
+        'ID': id,
+        'packageID': packageId,
+        'module_name': moduleName,
+        'currency_name': currencyName,
+        'modulePrice': modulePrice,
+        'module_description': moduleDescription,
+        'moduleType': moduleType,
+        'status': status,
+        'module_group': moduleGroup,
+      };
 
   factory ResellPackageModule.fromJson(Map<String, dynamic> json) {
     return ResellPackageModule(

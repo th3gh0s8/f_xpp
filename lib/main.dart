@@ -10,6 +10,8 @@ import 'services/notification_service.dart';
 import 'services/api_service.dart';
 import 'database/database_helper.dart';
 import 'splash_screen.dart';
+import 'models/invoice.dart';
+import 'models/partner.dart';
 
 @pragma('vm:entry-point')
 void callbackDispatcher() {
@@ -114,29 +116,49 @@ class _MyAppState extends State<MyApp> {
         final api = ApiService();
         final dbHelper = DatabaseHelper();
 
-        final dashboardData = await api.getDashboardData(phone);
-        if (dashboardData != null) {
-          DatabaseHelper().updateDashboard(dashboardData);
+        // 1. Fetch all API data endpoints in parallel
+        try {
+          final results = await Future.wait([
+            api.getDashboardData(phone),
+            api.getProfile(phone),
+            api.getInvoices(phone),
+            api.getPayouts(phone),
+            api.getCustomers(phone),
+          ]);
+
+          final dashboardData = results[0] as Map<String, dynamic>?;
+          final partner = results[1] as Partner?;
+          final invoices = results[2] as List<Invoice>? ?? [];
+          final payouts = results[3] as List<Map<String, dynamic>>? ?? [];
+          final customers = results[4] as List<Map<String, dynamic>>? ?? [];
+
+          // 2. Push all fresh data to the stream caches
+          if (dashboardData != null) {
+            dbHelper.updateDashboard(dashboardData);
+          }
+          if (partner != null) {
+            await dbHelper.insertPartner(partner);
+          }
+          dbHelper.updateInvoices(invoices);
+          dbHelper.updatePayouts(payouts);
+          dbHelper.updateCustomers(customers);
+        } catch (e) {
+          print('Foreground Sync Error: $e');
         }
-        final partner = await api.getProfile(phone);
-        if (partner != null) {
-          await dbHelper.insertPartner(partner);
-        }
+
+        // 3. Process notifications separately
         final notifications = await api.getNotifications(phone);
         if (notifications.isNotEmpty) {
-          // A. Check for BRAND NEW ones (for the popup)
           final lastSeenId = await dbHelper.getLastNotificationId() ?? 0;
           final newOnes = notifications.where((n) {
             final id = int.tryParse(n['id'].toString()) ?? 0;
             return id > lastSeenId;
           }).toList();
 
-          // B. Sync ALL notifications (This updates the Badge / Read status)
           for (var n in notifications) {
             await dbHelper.insertNotification(n);
           }
 
-          // C. Show Popups only for the new ones
           for (var n in newOnes) {
             final id = int.tryParse(n['id'].toString()) ?? 0;
             await NotificationService().showNotification(
@@ -146,7 +168,6 @@ class _MyAppState extends State<MyApp> {
             );
           }
         } else {
-          // If no notifications, still refresh the UI to show 0
           await dbHelper.refreshNotificationStream();
         }
       }

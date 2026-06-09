@@ -1,7 +1,11 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../services/api_service.dart';
 import '../widgets/system_overlay_wrapper.dart';
 import '../utils/format_utils.dart';
+import 'dart:async';
+import '../database/database_helper.dart';
 
 class PayoutsView extends StatefulWidget {
   final String phoneNumber;
@@ -22,11 +26,37 @@ class _PayoutsViewState extends State<PayoutsView> {
   Map<String, dynamic>? _dashboardData;
   bool _isLoading = true;
   bool _isRequesting = false;
+  StreamSubscription? _payoutSubscription;
+  StreamSubscription? _dashboardSubscription;
 
   @override
   void initState() {
     super.initState();
     _fetchPayoutData();
+    // Listen to real-time payouts updates
+    _payoutSubscription = DatabaseHelper().payoutStream.listen((payouts) {
+      if (mounted) {
+        setState(() {
+          _payouts = payouts;
+        });
+      }
+    });
+
+    // Listen to real-time dashboard updates (for available balance card)
+    _dashboardSubscription = DatabaseHelper().dashboardStream.listen((
+      dashboard,
+    ) {
+      if (mounted && dashboard != null) {
+        setState(() {
+          _dashboardData = dashboard;
+        });
+      }
+    });
+  }
+
+  Future<void> _initData() async {
+    await _loadCachedPayoutData();
+    if (mounted) _fetchPayoutData();
   }
 
   @override
@@ -43,6 +73,40 @@ class _PayoutsViewState extends State<PayoutsView> {
     }
   }
 
+  @override
+  void dispose() {
+    _payoutSubscription?.cancel();
+    _dashboardSubscription?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _loadCachedPayoutData() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final mobileNo = widget.phoneNumber;
+      final cachedPayouts = prefs.getString('cached_payouts_$mobileNo');
+      final cachedDashboard = prefs.getString('cached_dashboard_$mobileNo');
+      if (mounted) {
+        setState(() {
+          if (cachedPayouts != null && _payouts.isEmpty) {
+            _payouts = (json.decode(cachedPayouts) as List)
+                .map((e) => e as Map<String, dynamic>)
+                .toList();
+          }
+          if (cachedDashboard != null && _dashboardData == null) {
+            _dashboardData =
+                json.decode(cachedDashboard) as Map<String, dynamic>?;
+          }
+          if (_payouts.isNotEmpty || _dashboardData != null) {
+            _isLoading = false;
+          }
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading cached payout data: $e');
+    }
+  }
+
   Future<void> _fetchPayoutData() async {
     if (!mounted) return;
     final mobileNo = widget.phoneNumber;
@@ -54,6 +118,15 @@ class _PayoutsViewState extends State<PayoutsView> {
         _dashboardData = dashboard;
         _isLoading = false;
       });
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        prefs.setString('cached_payouts_$mobileNo', json.encode(payouts));
+        if (dashboard != null) {
+          prefs.setString('cached_dashboard_$mobileNo', json.encode(dashboard));
+        }
+      } catch (e) {
+        debugPrint('Error caching payout data: $e');
+      }
     }
   }
 

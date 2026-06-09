@@ -11,7 +11,8 @@ class DatabaseHelper {
   final _notificationStream =
       StreamController<List<Map<String, dynamic>>>.broadcast();
   final _invoiceStream = StreamController<List<Invoice>>.broadcast();
-  final _payoutStream = StreamController<List<PayoutRequest>>.broadcast();
+  final _payoutStream =
+      StreamController<List<Map<String, dynamic>>>.broadcast();
   final _partnerStream = StreamController<Partner?>.broadcast();
   final _customerStream =
       StreamController<List<Map<String, dynamic>>>.broadcast();
@@ -24,14 +25,45 @@ class DatabaseHelper {
   Stream<List<Map<String, dynamic>>> get notificationStream =>
       _notificationStream.stream;
   Stream<List<Invoice>> get invoiceStream => _invoiceStream.stream;
-  Stream<List<PayoutRequest>> get payoutStream => _payoutStream.stream;
+  Stream<List<Map<String, dynamic>>> get payoutStream => _payoutStream.stream;
   Stream<Partner?> get partnerStream => _partnerStream.stream;
   Stream<List<Map<String, dynamic>>> get customerStream =>
       _customerStream.stream;
   Stream<Map<String, dynamic>?> get dashboardStream => _dashboardStream.stream;
 
+  Map<String, dynamic>? _lastDashboardData;
+  Partner? _lastPartner;
+  List<Map<String, dynamic>> _lastNotifications = [];
+  List<Invoice> _lastInvoices = [];
+  List<Map<String, dynamic>> _lastPayouts = [];
+  List<Map<String, dynamic>> _lastCustomers = [];
+
+  // Add these getters so that outer files can read the cached variables:
+  Map<String, dynamic>? get cachedDashboard => _lastDashboardData;
+  Partner? get cachedPartner => _lastPartner;
+  List<Map<String, dynamic>> get cachedNotifications => _lastNotifications;
+  List<Invoice> get cachedInvoices => _lastInvoices;
+  List<Map<String, dynamic>> get cachedPayouts => _lastPayouts;
+  List<Map<String, dynamic>> get cachedCustomers => _lastCustomers;
+
   void updateDashboard(Map<String, dynamic>? data) {
+    _lastDashboardData = data;
     _dashboardStream.add(data);
+  }
+
+  void updateInvoices(List<Invoice> invoices) {
+    _lastInvoices = invoices;
+    _invoiceStream.add(invoices);
+  }
+
+  void updatePayouts(List<Map<String, dynamic>> payouts) {
+    _lastPayouts = payouts;
+    _payoutStream.add(payouts);
+  }
+
+  void updateCustomers(List<Map<String, dynamic>> customers) {
+    _lastCustomers = customers;
+    _customerStream.add(customers);
   }
 
   Future<void> refreshNotificationStream() async {
@@ -207,6 +239,7 @@ class DatabaseHelper {
       partner.toJson(),
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
+    _lastPartner = partner;
     _partnerStream.add(partner);
     return res;
   }
@@ -220,9 +253,11 @@ class DatabaseHelper {
     );
     if (maps.isNotEmpty) {
       final p = Partner.fromJson(maps.first);
+      _lastPartner = p;
       _partnerStream.add(p);
       return p;
     }
+    _lastPartner = null;
     _partnerStream.add(null);
     return null;
   }
@@ -317,7 +352,9 @@ class DatabaseHelper {
 
   Future<List<Map<String, dynamic>>> getNotifications() async {
     Database db = await database;
-    return await db.query('notifications', orderBy: 'id DESC');
+    final list = await db.query('notifications', orderBy: 'id DESC');
+    _lastNotifications = list;
+    return list;
   }
 
   Future<int> markNotificationsRead() async {
